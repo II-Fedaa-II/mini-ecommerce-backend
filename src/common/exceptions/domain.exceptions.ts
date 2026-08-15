@@ -1,4 +1,10 @@
-import { ConflictException, ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 
 export class UserNotFoundException extends NotFoundException {
   constructor(userId: string) {
@@ -27,6 +33,12 @@ export class CartItemNotFoundException extends NotFoundException {
 export class WishlistItemNotFoundException extends NotFoundException {
   constructor(productId: string) {
     super(`Product ${productId} was not found in the wishlist`);
+  }
+}
+
+export class InvalidVariantSelectionException extends BadRequestException {
+  constructor(name: string, value: string) {
+    super(`Invalid variant selection: ${name}=${value}`);
   }
 }
 
