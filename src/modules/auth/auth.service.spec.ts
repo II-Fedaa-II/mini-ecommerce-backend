@@ -6,6 +6,7 @@ import {
   InvalidRefreshTokenException,
   RefreshTokenReuseException,
 } from '../../common/exceptions/domain.exceptions';
+import { RolesService } from '../roles/roles.service';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 import { RefreshTokenRepository } from './repositories/refresh-token.repository';
@@ -14,11 +15,13 @@ describe('AuthService', () => {
   let service: AuthService;
   let usersService: jest.Mocked<UsersService>;
   let refreshTokenRepository: jest.Mocked<RefreshTokenRepository>;
+  let rolesService: jest.Mocked<RolesService>;
 
   const mockUser = {
     _id: { toString: () => 'user-1' },
     email: 'test@example.com',
     passwordHash: '',
+    roleId: { toString: () => 'role-1' },
   } as any;
 
   beforeEach(async () => {
@@ -48,11 +51,20 @@ describe('AuthService', () => {
       }),
     } as unknown as ConfigService;
 
+    rolesService = {
+      findByIdOrThrow: jest.fn().mockResolvedValue({
+        _id: { toString: () => 'role-1' },
+        name: 'customer',
+        permissions: ['products:read'],
+      }),
+    } as unknown as jest.Mocked<RolesService>;
+
     service = new AuthService(
       usersService,
       refreshTokenRepository,
       jwtService,
       configService,
+      rolesService,
     );
   });
 

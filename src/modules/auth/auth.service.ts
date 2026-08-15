@@ -11,6 +11,7 @@ import {
 import { parseDurationMs } from '../../common/utils/parse-duration';
 import { AppConfig } from '../../config/configuration';
 import { UserDocument } from '../users/schemas/user.schema';
+import { RolesService } from '../roles/roles.service';
 import { UsersService } from '../users/users.service';
 import { RefreshTokenRepository } from './repositories/refresh-token.repository';
 
@@ -30,6 +31,7 @@ export class AuthService {
     private readonly refreshTokenRepository: RefreshTokenRepository,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly rolesService: RolesService,
   ) {
     this.jwtConfig = this.configService.get<AppConfig>('app')!.jwt;
   }
@@ -41,7 +43,12 @@ export class AuthService {
   async login(
     email: string,
     password: string,
-  ): Promise<IssuedTokens & { user: UserDocument }> {
+  ): Promise<
+    IssuedTokens & {
+      user: UserDocument;
+      role: { id: string; name: string; permissions: string[] } | null;
+    }
+  > {
     const user = await this.usersService.findByEmailWithPassword(email);
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       throw new InvalidCredentialsException();
@@ -52,7 +59,17 @@ export class AuthService {
       user._id.toString(),
       randomUUID(),
     );
-    return { accessToken, refreshToken, user };
+
+    const roleDoc = await this.rolesService.findByIdOrThrow(
+      user.roleId.toString(),
+    );
+    const role = {
+      id: roleDoc._id.toString(),
+      name: roleDoc.name,
+      permissions: roleDoc.permissions,
+    };
+
+    return { accessToken, refreshToken, user, role };
   }
 
   async refresh(rawToken: string | undefined): Promise<IssuedTokens> {

@@ -24,12 +24,10 @@ export class AuthController {
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
-    const { accessToken, refreshToken, user } = await this.authService.login(
-      dto.email,
-      dto.password,
-    );
+    const { accessToken, refreshToken, user, role } =
+      await this.authService.login(dto.email, dto.password);
     this.setRefreshCookie(res, refreshToken);
-    return AuthResponseDto.from(accessToken, user);
+    return AuthResponseDto.from(accessToken, user, role);
   }
 
   @Post('refresh')
