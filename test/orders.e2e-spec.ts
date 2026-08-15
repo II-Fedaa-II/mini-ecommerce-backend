@@ -6,15 +6,18 @@ import {
   closeE2ETestApp,
   createE2ETestApp,
   E2ETestContext,
+  seedBuiltInRoles,
 } from './test-utils/mongo-memory-setup';
 
 describe('Orders (e2e)', () => {
   let ctx: E2ETestContext;
   let accessToken: string;
   let productId: string;
+  let customerRoleId: string;
 
   beforeAll(async () => {
     ctx = await createE2ETestApp();
+    ({ customerRoleId } = await seedBuiltInRoles(ctx.app));
 
     const productsService = ctx.app.get(ProductsService);
     await productsService.createMany([
@@ -35,6 +38,7 @@ describe('Orders (e2e)', () => {
       email: 'e2e-orders@test.com',
       passwordHash,
       name: 'E2E User',
+      roleId: customerRoleId,
     });
 
     const loginRes = await request(ctx.app.getHttpServer())
@@ -111,6 +115,7 @@ describe('Orders (e2e)', () => {
       email: 'e2e-orders-2@test.com',
       passwordHash,
       name: 'Other User',
+      roleId: customerRoleId,
     });
     const otherLogin = await request(ctx.app.getHttpServer())
       .post('/auth/login')

@@ -46,6 +46,25 @@ export class ProductsService {
     return this.productsRepository.count();
   }
 
+  async create(data: CreateProductData): Promise<ProductResponseDto> {
+    const product = await this.productsRepository.create(data);
+    return ProductResponseDto.fromDocument(product);
+  }
+
+  async update(
+    id: string,
+    data: Partial<CreateProductData>,
+  ): Promise<ProductResponseDto> {
+    const product = await this.productsRepository.update(id, data);
+    if (!product) throw new ProductNotFoundException(id);
+    return ProductResponseDto.fromDocument(product);
+  }
+
+  async delete(id: string): Promise<void> {
+    const deleted = await this.productsRepository.delete(id);
+    if (!deleted) throw new ProductNotFoundException(id);
+  }
+
   async createMany(data: CreateProductData[]): Promise<void> {
     await this.productsRepository.createMany(data);
   }

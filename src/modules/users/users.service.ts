@@ -23,6 +23,20 @@ export class UsersService {
     return this.usersRepository.create(data);
   }
 
+  findAll(): Promise<UserDocument[]> {
+    return this.usersRepository.findAll();
+  }
+
+  async assignRole(userId: string, roleId: string): Promise<UserDocument> {
+    const updated = await this.usersRepository.updateRole(userId, roleId);
+    if (!updated) throw new UserNotFoundException(userId);
+    return updated;
+  }
+
+  countByRoleId(roleId: string): Promise<number> {
+    return this.usersRepository.countByRoleId(roleId);
+  }
+
   findByEmail(email: string): Promise<UserDocument | null> {
     return this.usersRepository.findByEmail(email);
   }

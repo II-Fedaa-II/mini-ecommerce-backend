@@ -7,6 +7,7 @@ export interface CreateUserData {
   email: string;
   passwordHash: string;
   name: string;
+  roleId: string;
 }
 
 /**
@@ -21,6 +22,9 @@ export abstract class UsersRepository {
   abstract findByEmailWithPassword(email: string): Promise<UserDocument | null>;
   abstract save(user: UserDocument): Promise<UserDocument>;
   abstract findByIds(ids: string[]): Promise<UserDocument[]>;
+  abstract findAll(): Promise<UserDocument[]>;
+  abstract updateRole(id: string, roleId: string): Promise<UserDocument | null>;
+  abstract countByRoleId(roleId: string): Promise<number>;
 }
 
 @Injectable()
@@ -54,5 +58,19 @@ export class MongooseUsersRepository implements UsersRepository {
 
   findByIds(ids: string[]): Promise<UserDocument[]> {
     return this.userModel.find({ _id: { $in: ids } }).exec();
+  }
+
+  findAll(): Promise<UserDocument[]> {
+    return this.userModel.find().sort({ createdAt: 1 }).exec();
+  }
+
+  updateRole(id: string, roleId: string): Promise<UserDocument | null> {
+    return this.userModel
+      .findByIdAndUpdate(id, { roleId }, { new: true })
+      .exec();
+  }
+
+  countByRoleId(roleId: string): Promise<number> {
+    return this.userModel.countDocuments({ roleId }).exec();
   }
 }

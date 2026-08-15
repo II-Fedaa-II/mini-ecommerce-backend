@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { CartModule } from './modules/cart/cart.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { ProductsModule } from './modules/products/products.module';
+import { RolesModule } from './modules/roles/roles.module';
 import { UsersModule } from './modules/users/users.module';
 import { WishlistModule } from './modules/wishlist/wishlist.module';
 
@@ -26,6 +27,7 @@ import { WishlistModule } from './modules/wishlist/wishlist.module';
     CartModule,
     WishlistModule,
     OrdersModule,
+    RolesModule,
   ],
 })
 export class AppModule {}

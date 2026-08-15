@@ -4,6 +4,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { RequestUser } from '../../../common/types/authenticated-request';
 import { AppConfig } from '../../../config/configuration';
+import { RolesService } from '../../roles/roles.service';
 import { UsersService } from '../../users/users.service';
 
 interface AccessTokenPayload {
@@ -19,6 +20,7 @@ export class JwtAccessStrategy extends PassportStrategy(
   constructor(
     configService: ConfigService,
     private readonly usersService: UsersService,
+    private readonly rolesService: RolesService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -27,15 +29,22 @@ export class JwtAccessStrategy extends PassportStrategy(
     });
   }
 
+  /**
+   * Permissions are resolved from the database on every request rather than baked into
+   * the token, so revoking a permission takes effect immediately instead of waiting for
+   * the current access token to expire.
+   */
   async validate(payload: AccessTokenPayload): Promise<RequestUser> {
     const user = await this.usersService.findByIdOrThrow(payload.sub);
-    // Role/permissions are wired in once the RBAC module exists (see roles.module.ts);
-    // every authenticated user is treated as a plain 'customer' until then.
+    const role = await this.rolesService.findByIdOrThrow(
+      user.roleId.toString(),
+    );
+
     return {
       userId: user._id.toString(),
       email: user.email,
-      roleName: 'customer',
-      permissions: [],
+      roleName: role.name,
+      permissions: role.permissions,
     };
   }
 }

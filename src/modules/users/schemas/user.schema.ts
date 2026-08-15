@@ -19,6 +19,9 @@ export class User {
   @Prop({ required: true, trim: true })
   name: string;
 
+  @Prop({ type: Types.ObjectId, ref: 'Role', required: true, index: true })
+  roleId: Types.ObjectId;
+
   @Prop({ type: [CartItemSchema], default: [] })
   cart: CartItem[];
 

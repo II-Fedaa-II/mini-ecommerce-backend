@@ -95,3 +95,21 @@ export class RoleInUseException extends ConflictException {
     );
   }
 }
+
+export class RoleNameTakenException extends ConflictException {
+  constructor(roleName: string) {
+    super(`A role named "${roleName}" already exists`);
+  }
+}
+
+export class SystemRoleImmutableException extends ForbiddenException {
+  constructor(roleName: string) {
+    super(`The built-in "${roleName}" role cannot be modified or deleted`);
+  }
+}
+
+export class UnknownPermissionException extends BadRequestException {
+  constructor(permission: string) {
+    super(`Unknown permission: ${permission}`);
+  }
+}

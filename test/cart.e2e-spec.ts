@@ -6,6 +6,7 @@ import {
   closeE2ETestApp,
   createE2ETestApp,
   E2ETestContext,
+  seedBuiltInRoles,
 } from './test-utils/mongo-memory-setup';
 
 describe('Cart (e2e)', () => {
@@ -15,6 +16,7 @@ describe('Cart (e2e)', () => {
 
   beforeAll(async () => {
     ctx = await createE2ETestApp();
+    const { customerRoleId } = await seedBuiltInRoles(ctx.app);
 
     const productsService = ctx.app.get(ProductsService);
     await productsService.createMany([
@@ -35,6 +37,7 @@ describe('Cart (e2e)', () => {
       email: 'e2e-cart@test.com',
       passwordHash,
       name: 'E2E User',
+      roleId: customerRoleId,
     });
 
     const loginRes = await request(ctx.app.getHttpServer())

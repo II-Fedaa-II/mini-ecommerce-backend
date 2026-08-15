@@ -5,6 +5,7 @@ import {
   closeE2ETestApp,
   createE2ETestApp,
   E2ETestContext,
+  seedBuiltInRoles,
 } from './test-utils/mongo-memory-setup';
 
 describe('Auth (e2e)', () => {
@@ -14,9 +15,15 @@ describe('Auth (e2e)', () => {
 
   beforeAll(async () => {
     ctx = await createE2ETestApp();
+    const { customerRoleId } = await seedBuiltInRoles(ctx.app);
     const usersService = ctx.app.get(UsersService);
     const passwordHash = await AuthService.hashPassword(password);
-    await usersService.createUser({ email, passwordHash, name: 'E2E User' });
+    await usersService.createUser({
+      email,
+      passwordHash,
+      name: 'E2E User',
+      roleId: customerRoleId,
+    });
   });
 
   afterAll(async () => {
