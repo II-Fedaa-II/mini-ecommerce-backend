@@ -25,6 +25,7 @@ export abstract class UsersRepository {
   abstract findAll(): Promise<UserDocument[]>;
   abstract updateRole(id: string, roleId: string): Promise<UserDocument | null>;
   abstract countByRoleId(roleId: string): Promise<number>;
+  abstract assignRoleToUsersWithout(roleId: string): Promise<number>;
 }
 
 @Injectable()
@@ -72,5 +73,19 @@ export class MongooseUsersRepository implements UsersRepository {
 
   countByRoleId(roleId: string): Promise<number> {
     return this.userModel.countDocuments({ roleId }).exec();
+  }
+
+  /**
+   * Backfill for accounts created before RBAC existed. A single updateMany rather
+   * than a read-then-write loop, so it stays one round trip regardless of user count.
+   */
+  async assignRoleToUsersWithout(roleId: string): Promise<number> {
+    const result = await this.userModel
+      .updateMany(
+        { $or: [{ roleId: { $exists: false } }, { roleId: null }] },
+        { roleId },
+      )
+      .exec();
+    return result.modifiedCount;
   }
 }

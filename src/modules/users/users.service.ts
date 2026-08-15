@@ -37,6 +37,10 @@ export class UsersService {
     return this.usersRepository.countByRoleId(roleId);
   }
 
+  backfillMissingRoles(roleId: string): Promise<number> {
+    return this.usersRepository.assignRoleToUsersWithout(roleId);
+  }
+
   findByEmail(email: string): Promise<UserDocument | null> {
     return this.usersRepository.findByEmail(email);
   }

@@ -59,6 +59,17 @@ async function seed(): Promise<void> {
 
   const usersService = app.get(UsersService);
 
+  // Accounts created before RBAC shipped have no role — give them the customer role
+  // so an existing database keeps working instead of failing at login.
+  const backfilled = await usersService.backfillMissingRoles(
+    customerRole._id.toString(),
+  );
+  if (backfilled > 0) {
+    logger.log(
+      `Backfilled the customer role onto ${backfilled} pre-RBAC user(s)`,
+    );
+  }
+
   const existingCustomer = await usersService.findByEmail(DEMO_EMAIL);
   if (!existingCustomer) {
     await usersService.createUser({
