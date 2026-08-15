@@ -33,10 +33,11 @@ export default tseslint.config(
     },
   },
   {
-    // Jest mock doubles are inherently "unsafe" from the type checker's point of view —
-    // `as unknown as jest.Mocked<T>` casts and bare `expect(mock.method)` references are
-    // the idiomatic way to write them, so these rules just add noise in spec files.
-    files: ['**/*.spec.ts'],
+    // Jest mock doubles and supertest's untyped response.body are inherently "unsafe"
+    // from the type checker's point of view — `as unknown as jest.Mocked<T>` casts,
+    // bare `expect(mock.method)` references, and reading fields off `response.body`
+    // are the idiomatic way to write these tests, so these rules just add noise here.
+    files: ['**/*.spec.ts', '**/*.e2e-spec.ts'],
     rules: {
       '@typescript-eslint/unbound-method': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
