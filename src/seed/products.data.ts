@@ -134,7 +134,7 @@ export const SEED_PRODUCTS: CreateProductData[] = [
   {
     title: 'Linen Throw Pillow Cover',
     imageUrl:
-      'https://images.unsplash.com/photo-1584100936595-c0654b55a2e6?w=800&q=80&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&q=80&auto=format&fit=crop',
     description: '18x18 inch linen pillow cover with a hidden zipper closure.',
     price: 12.99,
     stock: 55,
