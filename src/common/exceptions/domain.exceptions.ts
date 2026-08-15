@@ -1,5 +1,11 @@
 import { ConflictException, ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
+export class UserNotFoundException extends NotFoundException {
+  constructor(userId: string) {
+    super(`User ${userId} was not found`);
+  }
+}
+
 export class ProductNotFoundException extends NotFoundException {
   constructor(productId: string) {
     super(`Product ${productId} was not found`);
