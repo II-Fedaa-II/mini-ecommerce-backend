@@ -33,7 +33,25 @@ export class Order {
 
   @Prop({ required: true })
   total: number;
+
+  /**
+   * Client-supplied key that makes checkout safe to retry. A double-clicked button or a
+   * network retry sends the same key, and the unique index below turns the second write
+   * into a duplicate-key error we can answer with the original order.
+   */
+  @Prop({ type: String, required: false })
+  idempotencyKey?: string;
 }
 
 export type OrderDocument = HydratedDocument<Order>;
 export const OrderSchema = SchemaFactory.createForClass(Order);
+
+// Partial + unique: keys are only unique per user, and orders placed without a key are
+// exempt rather than colliding on `null`.
+OrderSchema.index(
+  { userId: 1, idempotencyKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { idempotencyKey: { $type: 'string' } },
+  },
+);

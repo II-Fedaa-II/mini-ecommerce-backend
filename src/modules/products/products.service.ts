@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { ProductNotFoundException } from '../../common/exceptions/domain.exceptions';
+import {
+  ProductNotFoundException,
+  ProductTitleTakenException,
+} from '../../common/exceptions/domain.exceptions';
 import { ProductResponseDto } from './dto/product-response.dto';
 import {
   CreateProductData,
   ProductsRepository,
+  StockUpdate,
 } from './repositories/products.repository';
 import { ProductDocument } from './schemas/product.schema';
 
@@ -36,10 +40,13 @@ export class ProductsService {
     await this.productsRepository.decrementStock(id, amount);
   }
 
-  async decrementManyStock(
-    updates: { productId: string; amount: number }[],
-  ): Promise<void> {
-    await this.productsRepository.decrementManyStock(updates);
+  /** Returns the lines that were actually claimed — fewer means someone else took stock. */
+  decrementManyStock(updates: StockUpdate[]): Promise<StockUpdate[]> {
+    return this.productsRepository.decrementManyStock(updates);
+  }
+
+  async restoreManyStock(updates: StockUpdate[]): Promise<void> {
+    await this.productsRepository.restoreManyStock(updates);
   }
 
   count(): Promise<number> {
@@ -47,6 +54,7 @@ export class ProductsService {
   }
 
   async create(data: CreateProductData): Promise<ProductResponseDto> {
+    await this.assertTitleIsFree(data.title);
     const product = await this.productsRepository.create(data);
     return ProductResponseDto.fromDocument(product);
   }
@@ -55,9 +63,26 @@ export class ProductsService {
     id: string,
     data: Partial<CreateProductData>,
   ): Promise<ProductResponseDto> {
+    if (data.title) await this.assertTitleIsFree(data.title, id);
+
     const product = await this.productsRepository.update(id, data);
     if (!product) throw new ProductNotFoundException(id);
     return ProductResponseDto.fromDocument(product);
+  }
+
+  /**
+   * There is no SKU in this data model, so the title is the only thing distinguishing
+   * one product from another — two identically titled products would be indistinguishable
+   * to a shopper. `exceptId` lets an edit keep its own title.
+   */
+  private async assertTitleIsFree(
+    title: string,
+    exceptId?: string,
+  ): Promise<void> {
+    const existing = await this.productsRepository.findByTitle(title.trim());
+    if (existing && existing._id.toString() !== exceptId) {
+      throw new ProductTitleTakenException(title);
+    }
   }
 
   async delete(id: string): Promise<void> {

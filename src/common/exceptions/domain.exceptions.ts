@@ -18,6 +18,12 @@ export class ProductNotFoundException extends NotFoundException {
   }
 }
 
+export class ProductTitleTakenException extends ConflictException {
+  constructor(title: string) {
+    super(`A product titled "${title}" already exists`);
+  }
+}
+
 export class InsufficientStockException extends ConflictException {
   constructor(productId: string, requested: number, available: number) {
     super(

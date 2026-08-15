@@ -7,12 +7,20 @@ export interface CreateOrderData {
   userId: string;
   items: OrderLine[];
   total: number;
+  idempotencyKey?: string;
 }
 
 export abstract class OrdersRepository {
   abstract create(data: CreateOrderData): Promise<OrderDocument>;
   abstract findById(id: string): Promise<OrderDocument | null>;
+  abstract findByIdempotencyKey(
+    userId: string,
+    idempotencyKey: string,
+  ): Promise<OrderDocument | null>;
 }
+
+/** Mongo's duplicate-key error code, raised when the idempotency index rejects a replay. */
+export const DUPLICATE_KEY_ERROR = 11000;
 
 @Injectable()
 export class MongooseOrdersRepository implements OrdersRepository {
@@ -26,5 +34,12 @@ export class MongooseOrdersRepository implements OrdersRepository {
 
   findById(id: string): Promise<OrderDocument | null> {
     return this.orderModel.findById(id).exec();
+  }
+
+  findByIdempotencyKey(
+    userId: string,
+    idempotencyKey: string,
+  ): Promise<OrderDocument | null> {
+    return this.orderModel.findOne({ userId, idempotencyKey }).exec();
   }
 }

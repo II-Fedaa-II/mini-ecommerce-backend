@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Headers,
   HttpCode,
   Param,
   Post,
@@ -17,10 +18,17 @@ import { OrdersService } from './orders.service';
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
+  /**
+   * `Idempotency-Key` is optional but strongly recommended: send the same key when
+   * retrying and the original order comes back instead of a second one being placed.
+   */
   @Post()
   @HttpCode(201)
-  checkout(@CurrentUser() user: RequestUser): Promise<OrderResponseDto> {
-    return this.ordersService.checkout(user.userId);
+  checkout(
+    @CurrentUser() user: RequestUser,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ): Promise<OrderResponseDto> {
+    return this.ordersService.checkout(user.userId, idempotencyKey?.trim());
   }
 
   @Get(':id')

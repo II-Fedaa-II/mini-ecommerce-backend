@@ -13,10 +13,11 @@ describe('Products (e2e)', () => {
   let ctx: E2ETestContext;
   let accessToken: string;
   let productId: string;
+  let adminToken: string;
 
   beforeAll(async () => {
     ctx = await createE2ETestApp();
-    const { customerRoleId } = await seedBuiltInRoles(ctx.app);
+    const { customerRoleId, adminRoleId } = await seedBuiltInRoles(ctx.app);
 
     const productsService = ctx.app.get(ProductsService);
     await productsService.createMany([
@@ -40,10 +41,22 @@ describe('Products (e2e)', () => {
       roleId: customerRoleId,
     });
 
+    await usersService.createUser({
+      email: 'e2e-products-admin@test.com',
+      passwordHash,
+      name: 'E2E Admin',
+      roleId: adminRoleId,
+    });
+
     const loginRes = await request(ctx.app.getHttpServer())
       .post('/auth/login')
       .send({ email: 'e2e-products@test.com', password: 'Password123!' });
     accessToken = loginRes.body.accessToken;
+
+    const adminLogin = await request(ctx.app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'e2e-products-admin@test.com', password: 'Password123!' });
+    adminToken = adminLogin.body.accessToken;
   });
 
   afterAll(async () => {
@@ -78,5 +91,67 @@ describe('Products (e2e)', () => {
       .get('/products/000000000000000000000000')
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(404);
+  });
+
+  describe('duplicate titles', () => {
+    it('refuses a second product with the same title', async () => {
+      await request(ctx.app.getHttpServer())
+        .post('/products')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          title: 'Unique Widget',
+          description: 'First one wins',
+          price: 5,
+          stock: 1,
+          variants: [],
+        })
+        .expect(201);
+
+      await request(ctx.app.getHttpServer())
+        .post('/products')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          title: 'Unique Widget',
+          description: 'Should be refused',
+          price: 9,
+          stock: 1,
+          variants: [],
+        })
+        .expect(409);
+    });
+
+    it('treats titles as case-insensitive so casing cannot sneak a duplicate through', async () => {
+      await request(ctx.app.getHttpServer())
+        .post('/products')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          title: 'uNiQuE wIdGeT',
+          description: 'Same product, different casing',
+          price: 9,
+          stock: 1,
+          variants: [],
+        })
+        .expect(409);
+    });
+
+    it('lets a product keep its own title when edited', async () => {
+      const created = await request(ctx.app.getHttpServer())
+        .post('/products')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          title: 'Editable Widget',
+          description: 'Will be edited',
+          price: 5,
+          stock: 1,
+          variants: [],
+        })
+        .expect(201);
+
+      await request(ctx.app.getHttpServer())
+        .patch(`/products/${created.body.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ title: 'Editable Widget', stock: 12 })
+        .expect(200);
+    });
   });
 });

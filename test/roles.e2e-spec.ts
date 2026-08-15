@@ -224,4 +224,30 @@ describe('Roles / RBAC (e2e)', () => {
 
     expect(updated.body.role.name).toBe('admin');
   });
+
+  it('refuses a duplicate product title, case-insensitively', async () => {
+    await request(ctx.app.getHttpServer())
+      .post('/products')
+      .set('Authorization', asAdmin())
+      .send({
+        title: 'Unique Widget',
+        description: 'First one wins',
+        price: 5,
+        stock: 1,
+        variants: [],
+      })
+      .expect(201);
+
+    await request(ctx.app.getHttpServer())
+      .post('/products')
+      .set('Authorization', asAdmin())
+      .send({
+        title: 'unique WIDGET',
+        description: 'Same product, different casing',
+        price: 9,
+        stock: 3,
+        variants: [],
+      })
+      .expect(409);
+  });
 });
