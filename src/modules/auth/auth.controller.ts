@@ -1,7 +1,16 @@
-import { Body, Controller, HttpCode, Post, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { AppConfig } from '../../config/configuration';
+import { LoginThrottlerGuard } from '../../common/guards/login-throttler.guard';
 import { AuthService } from './auth.service';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
@@ -20,6 +29,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
+  @UseGuards(LoginThrottlerGuard)
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,

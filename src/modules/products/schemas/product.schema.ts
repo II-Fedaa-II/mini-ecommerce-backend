@@ -28,6 +28,17 @@ export class Product {
 
   @Prop({ type: [ProductVariantSchema], default: [] })
   variants: ProductVariant[];
+
+  @Prop({ type: String, default: null })
+  imageUrl: string | null;
+
+  /**
+   * Bumped on every edit. An update must present the version it read, so two admins
+   * editing the same product concurrently cannot silently overwrite each other —
+   * the second write is rejected instead of winning by arriving last.
+   */
+  @Prop({ required: true, default: 1 })
+  version: number;
 }
 
 export type ProductDocument = HydratedDocument<Product>;

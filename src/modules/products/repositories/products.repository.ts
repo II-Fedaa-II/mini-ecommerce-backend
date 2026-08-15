@@ -14,6 +14,7 @@ export interface CreateProductData {
   price: number;
   stock: number;
   variants: { name: string; options: string[] }[];
+  imageUrl?: string | null;
 }
 
 export abstract class ProductsRepository {
@@ -25,6 +26,15 @@ export abstract class ProductsRepository {
   abstract createMany(data: CreateProductData[]): Promise<ProductDocument[]>;
   abstract update(
     id: string,
+    data: Partial<CreateProductData>,
+  ): Promise<ProductDocument | null>;
+  /**
+   * Applies the edit only if the stored version still matches the one the editor read.
+   * Returns null when it does not, which the service reports as a conflict.
+   */
+  abstract updateIfVersionMatches(
+    id: string,
+    expectedVersion: number,
     data: Partial<CreateProductData>,
   ): Promise<ProductDocument | null>;
   abstract delete(id: string): Promise<boolean>;
@@ -77,15 +87,35 @@ export class MongooseProductsRepository implements ProductsRepository {
     return this.productModel.create(data);
   }
 
-  async createMany(data: CreateProductData[]): Promise<ProductDocument[]> {
-    return this.productModel.insertMany(data);
+  createMany(data: CreateProductData[]): Promise<ProductDocument[]> {
+    return this.productModel.insertMany(data) as unknown as Promise<
+      ProductDocument[]
+    >;
   }
 
   update(
     id: string,
     data: Partial<CreateProductData>,
   ): Promise<ProductDocument | null> {
-    return this.productModel.findByIdAndUpdate(id, data, { new: true }).exec();
+    return this.productModel
+      .findByIdAndUpdate(id, { ...data, $inc: { version: 1 } }, { new: true })
+      .exec();
+  }
+
+  updateIfVersionMatches(
+    id: string,
+    expectedVersion: number,
+    data: Partial<CreateProductData>,
+  ): Promise<ProductDocument | null> {
+    // The version is part of the filter, so a stale edit matches no document at all
+    // rather than overwriting whatever the other editor just saved.
+    return this.productModel
+      .findOneAndUpdate(
+        { _id: id, version: expectedVersion },
+        { ...data, $inc: { version: 1 } },
+        { new: true },
+      )
+      .exec();
   }
 
   async delete(id: string): Promise<boolean> {

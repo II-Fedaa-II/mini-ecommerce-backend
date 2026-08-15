@@ -24,6 +24,28 @@ export class ProductTitleTakenException extends ConflictException {
   }
 }
 
+export class UnsupportedImageTypeException extends BadRequestException {
+  constructor(mimetype: string) {
+    super(
+      `${mimetype} is not a supported image type. Use PNG, JPEG, WebP, or AVIF.`,
+    );
+  }
+}
+
+export class MissingImageException extends BadRequestException {
+  constructor() {
+    super('No image file was received');
+  }
+}
+
+export class ProductModifiedException extends ConflictException {
+  constructor() {
+    super(
+      'This product was changed by someone else while you were editing. Reload to see the latest version, then reapply your changes.',
+    );
+  }
+}
+
 export class InsufficientStockException extends ConflictException {
   constructor(productId: string, requested: number, available: number) {
     super(

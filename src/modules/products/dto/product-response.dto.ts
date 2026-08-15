@@ -12,6 +12,8 @@ export class ProductResponseDto {
   price: number;
   stock: number;
   variants: ProductVariantDto[];
+  imageUrl: string | null;
+  version: number;
 
   static fromDocument(product: ProductDocument): ProductResponseDto {
     const dto = new ProductResponseDto();
@@ -20,6 +22,8 @@ export class ProductResponseDto {
     dto.description = product.description;
     dto.price = product.price;
     dto.stock = product.stock;
+    dto.imageUrl = product.imageUrl ?? null;
+    dto.version = product.version;
     dto.variants = product.variants.map((variant) => ({
       name: variant.name,
       options: variant.options,

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  ProductModifiedException,
   ProductNotFoundException,
   ProductTitleTakenException,
 } from '../../common/exceptions/domain.exceptions';
@@ -59,14 +60,37 @@ export class ProductsService {
     return ProductResponseDto.fromDocument(product);
   }
 
+  /**
+   * `expectedVersion` is the version the editor had on screen. When supplied, the write
+   * only lands if nobody else changed the product in the meantime; otherwise the editor
+   * is told their copy is stale instead of silently clobbering the other change.
+   */
   async update(
     id: string,
     data: Partial<CreateProductData>,
+    expectedVersion?: number,
   ): Promise<ProductResponseDto> {
     if (data.title) await this.assertTitleIsFree(data.title, id);
 
-    const product = await this.productsRepository.update(id, data);
-    if (!product) throw new ProductNotFoundException(id);
+    if (expectedVersion === undefined) {
+      const product = await this.productsRepository.update(id, data);
+      if (!product) throw new ProductNotFoundException(id);
+      return ProductResponseDto.fromDocument(product);
+    }
+
+    const product = await this.productsRepository.updateIfVersionMatches(
+      id,
+      expectedVersion,
+      data,
+    );
+
+    if (!product) {
+      // Distinguish "gone" from "changed underneath you" — they need different fixes.
+      const current = await this.productsRepository.findById(id);
+      if (!current) throw new ProductNotFoundException(id);
+      throw new ProductModifiedException();
+    }
+
     return ProductResponseDto.fromDocument(product);
   }
 

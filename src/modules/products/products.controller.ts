@@ -7,8 +7,18 @@ import {
   Param,
   Patch,
   Post,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { randomUUID } from 'crypto';
+import { diskStorage } from 'multer';
+import { extname, join } from 'path';
+import {
+  MissingImageException,
+  UnsupportedImageTypeException,
+} from '../../common/exceptions/domain.exceptions';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -47,7 +57,42 @@ export class ProductsController {
     @Param('id') id: string,
     @Body() dto: UpdateProductDto,
   ): Promise<ProductResponseDto> {
-    return this.productsService.update(id, dto);
+    const { version, ...changes } = dto;
+    return this.productsService.update(id, changes, version);
+  }
+
+  /**
+   * Images are uploaded separately from the product body so the form can show a preview
+   * before saving, and so a failed image upload never loses the typed fields.
+   */
+  @Post('upload')
+  @RequirePermissions(PERMISSIONS.PRODUCTS_WRITE)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: join(process.cwd(), 'uploads'),
+        filename: (_req, file, callback) => {
+          // Never trust the client's filename on disk — keep only a safe extension.
+          const extension = extname(file.originalname).toLowerCase();
+          callback(null, `${randomUUID()}${extension}`);
+        },
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_req, file, callback) => {
+        const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/avif'];
+        if (!allowed.includes(file.mimetype)) {
+          callback(new UnsupportedImageTypeException(file.mimetype), false);
+          return;
+        }
+        callback(null, true);
+      },
+    }),
+  )
+  uploadImage(@UploadedFile() file?: Express.Multer.File): {
+    imageUrl: string;
+  } {
+    if (!file) throw new MissingImageException();
+    return { imageUrl: `/uploads/${file.filename}` };
   }
 
   @Delete(':id')

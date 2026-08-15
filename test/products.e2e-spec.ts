@@ -154,4 +154,84 @@ describe('Products (e2e)', () => {
         .expect(200);
     });
   });
+
+  describe('optimistic concurrency', () => {
+    it('rejects the second of two edits made from the same starting version', async () => {
+      const created = await request(ctx.app.getHttpServer())
+        .post('/products')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          title: `Concurrent Edit ${Date.now()}`,
+          description: 'Edited by two admins',
+          price: 20,
+          stock: 5,
+          variants: [],
+        })
+        .expect(201);
+
+      const { id, version } = created.body as { id: string; version: number };
+
+      // Both admins loaded the same version.
+      await request(ctx.app.getHttpServer())
+        .patch(`/products/${id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ stock: 10, version })
+        .expect(200);
+
+      // The second save is based on a version that no longer exists.
+      const stale = await request(ctx.app.getHttpServer())
+        .patch(`/products/${id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ stock: 99, version })
+        .expect(409);
+
+      expect(stale.body.message).toMatch(/changed by someone else/i);
+
+      // The first admin's value survived; the stale write did not land.
+      const current = await request(ctx.app.getHttpServer())
+        .get(`/products/${id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+      expect(current.body.stock).toBe(10);
+    });
+
+    it('accepts a retry once the editor reloads the current version', async () => {
+      const created = await request(ctx.app.getHttpServer())
+        .post('/products')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          title: `Retry After Reload ${Date.now()}`,
+          description: 'Reloaded before retrying',
+          price: 20,
+          stock: 5,
+          variants: [],
+        })
+        .expect(201);
+
+      const id = (created.body as { id: string }).id;
+
+      await request(ctx.app.getHttpServer())
+        .patch(`/products/${id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          stock: 7,
+          version: (created.body as { version: number }).version,
+        })
+        .expect(200);
+
+      const reloaded = await request(ctx.app.getHttpServer())
+        .get(`/products/${id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      await request(ctx.app.getHttpServer())
+        .patch(`/products/${id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          stock: 8,
+          version: (reloaded.body as { version: number }).version,
+        })
+        .expect(200);
+    });
+  });
 });
