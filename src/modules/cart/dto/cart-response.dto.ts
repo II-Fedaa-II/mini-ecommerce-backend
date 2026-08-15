@@ -10,14 +10,22 @@ export class CartLineDto {
   selectedVariants: { name: string; value: string }[];
   subtotal: number;
 
-  static from(item: CartItem, product: ProductDocument | undefined): CartLineDto {
+  static from(
+    item: CartItem,
+    product: ProductDocument | undefined,
+  ): CartLineDto {
     const dto = new CartLineDto();
-    dto.itemId = (item as unknown as { _id: { toString(): string } })._id.toString();
+    dto.itemId = (
+      item as unknown as { _id: { toString(): string } }
+    )._id.toString();
     dto.productId = item.productId.toString();
     dto.title = product?.title ?? 'Unknown product';
     dto.price = product?.price ?? 0;
     dto.quantity = item.quantity;
-    dto.selectedVariants = item.selectedVariants.map((v) => ({ name: v.name, value: v.value }));
+    dto.selectedVariants = item.selectedVariants.map((v) => ({
+      name: v.name,
+      value: v.value,
+    }));
     dto.subtotal = dto.price * item.quantity;
     return dto;
   }

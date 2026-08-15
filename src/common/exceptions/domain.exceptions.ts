@@ -20,7 +20,9 @@ export class ProductNotFoundException extends NotFoundException {
 
 export class InsufficientStockException extends ConflictException {
   constructor(productId: string, requested: number, available: number) {
-    super(`Only ${available} unit(s) of product ${productId} are available (requested ${requested})`);
+    super(
+      `Only ${available} unit(s) of product ${productId} are available (requested ${requested})`,
+    );
   }
 }
 
@@ -62,7 +64,9 @@ export class InvalidCredentialsException extends UnauthorizedException {
 
 export class RefreshTokenReuseException extends UnauthorizedException {
   constructor() {
-    super('Refresh token reuse detected — all sessions for this account have been revoked');
+    super(
+      'Refresh token reuse detected — all sessions for this account have been revoked',
+    );
   }
 }
 
@@ -86,6 +90,8 @@ export class RoleNotFoundException extends NotFoundException {
 
 export class RoleInUseException extends ConflictException {
   constructor(roleName: string) {
-    super(`Role ${roleName} is still assigned to at least one user and cannot be deleted`);
+    super(
+      `Role ${roleName} is still assigned to at least one user and cannot be deleted`,
+    );
   }
 }

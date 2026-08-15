@@ -1,10 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { Types } from 'mongoose';
-import { CartItemNotFoundException, UserNotFoundException } from '../../common/exceptions/domain.exceptions';
-import { CreateUserData, UsersRepository } from './repositories/users.repository';
+import {
+  CartItemNotFoundException,
+  UserNotFoundException,
+} from '../../common/exceptions/domain.exceptions';
+import {
+  CreateUserData,
+  UsersRepository,
+} from './repositories/users.repository';
 import { CartItem } from './schemas/cart-item.schema';
 import { UserDocument } from './schemas/user.schema';
-import { variantSelectionsMatch, VariantSelection } from './utils/variants.util';
+import {
+  variantSelectionsMatch,
+  VariantSelection,
+} from './utils/variants.util';
 
 @Injectable()
 export class UsersService {
@@ -41,7 +50,9 @@ export class UsersService {
   ): Promise<CartItem[]> {
     const user = await this.findByIdOrThrow(userId);
     const existing = user.cart.find(
-      (item) => item.productId.toString() === productId && variantSelectionsMatch(item.selectedVariants, selectedVariants),
+      (item) =>
+        item.productId.toString() === productId &&
+        variantSelectionsMatch(item.selectedVariants, selectedVariants),
     );
 
     if (existing) {
@@ -51,7 +62,7 @@ export class UsersService {
         productId: new Types.ObjectId(productId),
         quantity,
         selectedVariants,
-      } as CartItem);
+      });
     }
 
     await user.save();
@@ -64,11 +75,15 @@ export class UsersService {
     updates: { quantity?: number; selectedVariants?: VariantSelection[] },
   ): Promise<CartItem[]> {
     const user = await this.findByIdOrThrow(userId);
-    const item = user.cart.find((entry) => (entry as unknown as { _id: Types.ObjectId })._id.toString() === itemId);
+    const item = user.cart.find(
+      (entry) =>
+        (entry as unknown as { _id: Types.ObjectId })._id.toString() === itemId,
+    );
     if (!item) throw new CartItemNotFoundException(itemId);
 
     if (updates.quantity !== undefined) item.quantity = updates.quantity;
-    if (updates.selectedVariants !== undefined) item.selectedVariants = updates.selectedVariants;
+    if (updates.selectedVariants !== undefined)
+      item.selectedVariants = updates.selectedVariants;
 
     await user.save();
     return user.cart;
@@ -78,10 +93,12 @@ export class UsersService {
     const user = await this.findByIdOrThrow(userId);
     const initialLength = user.cart.length;
     user.cart = user.cart.filter(
-      (entry) => (entry as unknown as { _id: Types.ObjectId })._id.toString() !== itemId,
-    ) as CartItem[];
+      (entry) =>
+        (entry as unknown as { _id: Types.ObjectId })._id.toString() !== itemId,
+    );
 
-    if (user.cart.length === initialLength) throw new CartItemNotFoundException(itemId);
+    if (user.cart.length === initialLength)
+      throw new CartItemNotFoundException(itemId);
 
     await user.save();
     return user.cart;
@@ -98,15 +115,23 @@ export class UsersService {
     return user.wishlist;
   }
 
-  async addToWishlist(userId: string, productId: string): Promise<Types.ObjectId[]> {
+  async addToWishlist(
+    userId: string,
+    productId: string,
+  ): Promise<Types.ObjectId[]> {
     const user = await this.findByIdOrThrow(userId);
-    const alreadyPresent = user.wishlist.some((id) => id.toString() === productId);
+    const alreadyPresent = user.wishlist.some(
+      (id) => id.toString() === productId,
+    );
     if (!alreadyPresent) user.wishlist.push(new Types.ObjectId(productId));
     await user.save();
     return user.wishlist;
   }
 
-  async removeFromWishlist(userId: string, productId: string): Promise<Types.ObjectId[]> {
+  async removeFromWishlist(
+    userId: string,
+    productId: string,
+  ): Promise<Types.ObjectId[]> {
     const user = await this.findByIdOrThrow(userId);
     user.wishlist = user.wishlist.filter((id) => id.toString() !== productId);
     await user.save();

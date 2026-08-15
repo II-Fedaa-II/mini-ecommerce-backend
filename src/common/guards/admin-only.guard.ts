@@ -11,7 +11,8 @@ import { AuthenticatedRequest } from '../types/authenticated-request';
 export class AdminOnlyGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const { user } = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    if (user.roleName !== 'admin') throw new InsufficientPermissionsException('admin role');
+    if (user.roleName !== 'admin')
+      throw new InsufficientPermissionsException('admin role');
     return true;
   }
 }

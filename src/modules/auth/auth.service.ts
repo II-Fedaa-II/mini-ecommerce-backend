@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { randomBytes, randomUUID, createHash } from 'crypto';
 import {
@@ -38,14 +38,20 @@ export class AuthService {
     return bcrypt.hash(plain, BCRYPT_ROUNDS);
   }
 
-  async login(email: string, password: string): Promise<IssuedTokens & { user: UserDocument }> {
+  async login(
+    email: string,
+    password: string,
+  ): Promise<IssuedTokens & { user: UserDocument }> {
     const user = await this.usersService.findByEmailWithPassword(email);
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       throw new InvalidCredentialsException();
     }
 
     const accessToken = this.signAccessToken(user);
-    const refreshToken = await this.issueRefreshToken(user._id.toString(), randomUUID());
+    const refreshToken = await this.issueRefreshToken(
+      user._id.toString(),
+      randomUUID(),
+    );
     return { accessToken, refreshToken, user };
   }
 
@@ -63,20 +69,29 @@ export class AuthService {
       throw new RefreshTokenReuseException();
     }
 
-    if (existing.expiresAt.getTime() < Date.now()) throw new InvalidRefreshTokenException();
+    if (existing.expiresAt.getTime() < Date.now())
+      throw new InvalidRefreshTokenException();
 
     await this.refreshTokenRepository.revoke(existing._id.toString());
 
-    const user = await this.usersService.findByIdOrThrow(existing.userId.toString());
+    const user = await this.usersService.findByIdOrThrow(
+      existing.userId.toString(),
+    );
     const accessToken = this.signAccessToken(user);
-    const refreshToken = await this.issueRefreshToken(existing.userId.toString(), existing.familyId);
+    const refreshToken = await this.issueRefreshToken(
+      existing.userId.toString(),
+      existing.familyId,
+    );
     return { accessToken, refreshToken };
   }
 
   async logout(rawToken: string | undefined): Promise<void> {
     if (!rawToken) return;
-    const existing = await this.refreshTokenRepository.findByHash(this.hashToken(rawToken));
-    if (existing) await this.refreshTokenRepository.revokeFamily(existing.familyId);
+    const existing = await this.refreshTokenRepository.findByHash(
+      this.hashToken(rawToken),
+    );
+    if (existing)
+      await this.refreshTokenRepository.revokeFamily(existing.familyId);
   }
 
   refreshCookieMaxAgeMs(): number {
@@ -86,14 +101,26 @@ export class AuthService {
   private signAccessToken(user: UserDocument): string {
     return this.jwtService.sign(
       { sub: user._id.toString(), email: user.email },
-      { secret: this.jwtConfig.accessSecret, expiresIn: this.jwtConfig.accessExpiresIn },
+      {
+        secret: this.jwtConfig.accessSecret,
+        expiresIn: this.jwtConfig
+          .accessExpiresIn as JwtSignOptions['expiresIn'],
+      },
     );
   }
 
-  private async issueRefreshToken(userId: string, familyId: string): Promise<string> {
+  private async issueRefreshToken(
+    userId: string,
+    familyId: string,
+  ): Promise<string> {
     const raw = randomBytes(64).toString('hex');
     const expiresAt = new Date(Date.now() + this.refreshCookieMaxAgeMs());
-    await this.refreshTokenRepository.create({ userId, tokenHash: this.hashToken(raw), familyId, expiresAt });
+    await this.refreshTokenRepository.create({
+      userId,
+      tokenHash: this.hashToken(raw),
+      familyId,
+      expiresAt,
+    });
     return raw;
   }
 

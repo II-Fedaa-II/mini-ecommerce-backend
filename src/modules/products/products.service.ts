@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { ProductNotFoundException } from '../../common/exceptions/domain.exceptions';
 import { ProductResponseDto } from './dto/product-response.dto';
-import { ProductsRepository } from './repositories/products.repository';
+import {
+  CreateProductData,
+  ProductsRepository,
+} from './repositories/products.repository';
 import { ProductDocument } from './schemas/product.schema';
 
 @Injectable()
@@ -10,7 +13,7 @@ export class ProductsService {
 
   async findAll(): Promise<ProductResponseDto[]> {
     const products = await this.productsRepository.findAll();
-    return products.map(ProductResponseDto.fromDocument);
+    return products.map((product) => ProductResponseDto.fromDocument(product));
   }
 
   async getById(id: string): Promise<ProductResponseDto> {
@@ -33,7 +36,17 @@ export class ProductsService {
     await this.productsRepository.decrementStock(id, amount);
   }
 
-  async decrementManyStock(updates: { productId: string; amount: number }[]): Promise<void> {
+  async decrementManyStock(
+    updates: { productId: string; amount: number }[],
+  ): Promise<void> {
     await this.productsRepository.decrementManyStock(updates);
+  }
+
+  count(): Promise<number> {
+    return this.productsRepository.count();
+  }
+
+  async createMany(data: CreateProductData[]): Promise<void> {
+    await this.productsRepository.createMany(data);
   }
 }

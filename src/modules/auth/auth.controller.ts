@@ -1,6 +1,6 @@
 import { Body, Controller, HttpCode, Post, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { AppConfig } from '../../config/configuration';
 import { AuthService } from './auth.service';
 import { AuthResponseDto } from './dto/auth-response.dto';
@@ -10,30 +10,50 @@ import { LoginDto } from './dto/login.dto';
 export class AuthController {
   private readonly cookieName: string;
 
-  constructor(private readonly authService: AuthService, private readonly configService: ConfigService) {
-    this.cookieName = this.configService.get<AppConfig>('app')!.refreshCookieName;
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {
+    this.cookieName =
+      this.configService.get<AppConfig>('app')!.refreshCookieName;
   }
 
   @Post('login')
   @HttpCode(200)
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response): Promise<AuthResponseDto> {
-    const { accessToken, refreshToken, user } = await this.authService.login(dto.email, dto.password);
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponseDto> {
+    const { accessToken, refreshToken, user } = await this.authService.login(
+      dto.email,
+      dto.password,
+    );
     this.setRefreshCookie(res, refreshToken);
     return AuthResponseDto.from(accessToken, user);
   }
 
   @Post('refresh')
   @HttpCode(200)
-  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<{ accessToken: string }> {
-    const { accessToken, refreshToken } = await this.authService.refresh(req.cookies?.[this.cookieName]);
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ accessToken: string }> {
+    const { accessToken, refreshToken } = await this.authService.refresh(
+      (req.cookies as Record<string, string> | undefined)?.[this.cookieName],
+    );
     this.setRefreshCookie(res, refreshToken);
     return { accessToken };
   }
 
   @Post('logout')
   @HttpCode(200)
-  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<{ success: true }> {
-    await this.authService.logout(req.cookies?.[this.cookieName]);
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ success: true }> {
+    await this.authService.logout(
+      (req.cookies as Record<string, string> | undefined)?.[this.cookieName],
+    );
     res.clearCookie(this.cookieName, { path: '/auth' });
     return { success: true };
   }

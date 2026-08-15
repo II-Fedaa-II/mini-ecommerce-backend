@@ -9,7 +9,8 @@ export class ProductVariant {
   @Prop({ type: [String], required: true })
   options: string[];
 }
-export const ProductVariantSchema = SchemaFactory.createForClass(ProductVariant);
+export const ProductVariantSchema =
+  SchemaFactory.createForClass(ProductVariant);
 
 @Schema({ timestamps: true })
 export class Product {

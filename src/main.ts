@@ -13,7 +13,13 @@ async function bootstrap(): Promise<void> {
 
   app.use(cookieParser());
   app.enableCors({ origin: corsOrigins, credentials: true });
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
   app.useGlobalFilters(new HttpExceptionFilter());
 
   await app.listen(port);

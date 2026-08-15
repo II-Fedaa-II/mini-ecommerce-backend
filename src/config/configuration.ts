@@ -14,7 +14,8 @@ export interface AppConfig {
 export default (): { app: AppConfig } => ({
   app: {
     port: parseInt(process.env.PORT ?? '4000', 10),
-    mongoUri: process.env.MONGO_URI ?? 'mongodb://localhost:27017/mini_ecommerce',
+    mongoUri:
+      process.env.MONGO_URI ?? 'mongodb://localhost:27017/mini_ecommerce',
     jwt: {
       accessSecret: process.env.JWT_ACCESS_SECRET ?? 'dev-access-secret',
       accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '15m',

@@ -16,7 +16,9 @@ export abstract class OrdersRepository {
 
 @Injectable()
 export class MongooseOrdersRepository implements OrdersRepository {
-  constructor(@InjectModel(Order.name) private readonly orderModel: Model<OrderDocument>) {}
+  constructor(
+    @InjectModel(Order.name) private readonly orderModel: Model<OrderDocument>,
+  ) {}
 
   create(data: CreateOrderData): Promise<OrderDocument> {
     return this.orderModel.create(data);

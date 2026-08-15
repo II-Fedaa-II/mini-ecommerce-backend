@@ -12,8 +12,14 @@ interface AccessTokenPayload {
 }
 
 @Injectable()
-export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') {
-  constructor(configService: ConfigService, private readonly usersService: UsersService) {
+export class JwtAccessStrategy extends PassportStrategy(
+  Strategy,
+  'jwt-access',
+) {
+  constructor(
+    configService: ConfigService,
+    private readonly usersService: UsersService,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -25,6 +31,11 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
     const user = await this.usersService.findByIdOrThrow(payload.sub);
     // Role/permissions are wired in once the RBAC module exists (see roles.module.ts);
     // every authenticated user is treated as a plain 'customer' until then.
-    return { userId: user._id.toString(), email: user.email, roleName: 'customer', permissions: [] };
+    return {
+      userId: user._id.toString(),
+      email: user.email,
+      roleName: 'customer',
+      permissions: [],
+    };
   }
 }

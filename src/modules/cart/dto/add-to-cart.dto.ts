@@ -1,5 +1,12 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsInt, IsMongoId, IsOptional, Min, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsInt,
+  IsMongoId,
+  IsOptional,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 import { VariantSelectionDto } from './variant-selection.dto';
 
 export class AddToCartDto {

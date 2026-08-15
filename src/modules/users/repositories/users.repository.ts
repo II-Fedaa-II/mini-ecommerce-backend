@@ -25,7 +25,9 @@ export abstract class UsersRepository {
 
 @Injectable()
 export class MongooseUsersRepository implements UsersRepository {
-  constructor(@InjectModel(User.name) private readonly userModel: Model<UserDocument>) {}
+  constructor(
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+  ) {}
 
   create(data: CreateUserData): Promise<UserDocument> {
     return this.userModel.create(data);
@@ -40,7 +42,10 @@ export class MongooseUsersRepository implements UsersRepository {
   }
 
   findByEmailWithPassword(email: string): Promise<UserDocument | null> {
-    return this.userModel.findOne({ email: email.toLowerCase() }).select('+passwordHash').exec();
+    return this.userModel
+      .findOne({ email: email.toLowerCase() })
+      .select('+passwordHash')
+      .exec();
   }
 
   save(user: UserDocument): Promise<UserDocument> {

@@ -1,4 +1,11 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import { Request, Response } from 'express';
 
 interface ErrorResponseBody {
@@ -19,7 +26,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     const isHttpException = exception instanceof HttpException;
-    const statusCode = isHttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+    const statusCode = isHttpException
+      ? exception.getStatus()
+      : HttpStatus.INTERNAL_SERVER_ERROR;
 
     const body: ErrorResponseBody = {
       statusCode,
@@ -30,17 +39,26 @@ export class HttpExceptionFilter implements ExceptionFilter {
     };
 
     if (!isHttpException) {
-      this.logger.error(exception instanceof Error ? exception.stack : exception);
+      this.logger.error(
+        exception instanceof Error ? exception.stack : exception,
+      );
     }
 
     response.status(statusCode).json(body);
   }
 
-  private resolveMessage(exception: unknown, isHttpException: boolean): string | string[] {
+  private resolveMessage(
+    exception: unknown,
+    isHttpException: boolean,
+  ): string | string[] {
     if (isHttpException) {
       const response = (exception as HttpException).getResponse();
       if (typeof response === 'string') return response;
-      if (typeof response === 'object' && response !== null && 'message' in response) {
+      if (
+        typeof response === 'object' &&
+        response !== null &&
+        'message' in response
+      ) {
         return (response as { message: string | string[] }).message;
       }
     }

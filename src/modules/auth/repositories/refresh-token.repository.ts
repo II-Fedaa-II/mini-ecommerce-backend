@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { RefreshToken, RefreshTokenDocument } from '../schemas/refresh-token.schema';
+import {
+  RefreshToken,
+  RefreshTokenDocument,
+} from '../schemas/refresh-token.schema';
 
 export interface CreateRefreshTokenData {
   userId: string;
@@ -19,7 +22,10 @@ export abstract class RefreshTokenRepository {
 
 @Injectable()
 export class MongooseRefreshTokenRepository implements RefreshTokenRepository {
-  constructor(@InjectModel(RefreshToken.name) private readonly model: Model<RefreshTokenDocument>) {}
+  constructor(
+    @InjectModel(RefreshToken.name)
+    private readonly model: Model<RefreshTokenDocument>,
+  ) {}
 
   create(data: CreateRefreshTokenData): Promise<RefreshTokenDocument> {
     return this.model.create(data);

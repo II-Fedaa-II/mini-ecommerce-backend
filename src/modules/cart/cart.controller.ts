@@ -1,7 +1,16 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { RequestUser } from '../../common/types/authenticated-request';
+import type { RequestUser } from '../../common/types/authenticated-request';
 import { CartService } from './cart.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { CartResponseDto } from './dto/cart-response.dto';
@@ -18,7 +27,10 @@ export class CartController {
   }
 
   @Post()
-  addItem(@CurrentUser() user: RequestUser, @Body() dto: AddToCartDto): Promise<CartResponseDto> {
+  addItem(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: AddToCartDto,
+  ): Promise<CartResponseDto> {
     return this.cartService.addItem(user.userId, dto);
   }
 
@@ -32,7 +44,10 @@ export class CartController {
   }
 
   @Delete(':itemId')
-  removeItem(@CurrentUser() user: RequestUser, @Param('itemId') itemId: string): Promise<CartResponseDto> {
+  removeItem(
+    @CurrentUser() user: RequestUser,
+    @Param('itemId') itemId: string,
+  ): Promise<CartResponseDto> {
     return this.cartService.removeItem(user.userId, itemId);
   }
 }

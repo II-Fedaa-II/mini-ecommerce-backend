@@ -20,7 +20,10 @@ export class ProductResponseDto {
     dto.description = product.description;
     dto.price = product.price;
     dto.stock = product.stock;
-    dto.variants = product.variants.map((variant) => ({ name: variant.name, options: variant.options }));
+    dto.variants = product.variants.map((variant) => ({
+      name: variant.name,
+      options: variant.options,
+    }));
     return dto;
   }
 }

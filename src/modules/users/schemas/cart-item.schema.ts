@@ -9,7 +9,8 @@ export class SelectedVariant {
   @Prop({ required: true })
   value: string;
 }
-export const SelectedVariantSchema = SchemaFactory.createForClass(SelectedVariant);
+export const SelectedVariantSchema =
+  SchemaFactory.createForClass(SelectedVariant);
 
 @Schema({ _id: true })
 export class CartItem {

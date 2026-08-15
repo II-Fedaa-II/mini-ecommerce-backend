@@ -17,16 +17,27 @@ export abstract class ProductsRepository {
   abstract findByIds(ids: string[]): Promise<ProductDocument[]>;
   abstract create(data: CreateProductData): Promise<ProductDocument>;
   abstract createMany(data: CreateProductData[]): Promise<ProductDocument[]>;
-  abstract update(id: string, data: Partial<CreateProductData>): Promise<ProductDocument | null>;
+  abstract update(
+    id: string,
+    data: Partial<CreateProductData>,
+  ): Promise<ProductDocument | null>;
   abstract delete(id: string): Promise<boolean>;
-  abstract decrementStock(id: string, amount: number): Promise<ProductDocument | null>;
-  abstract decrementManyStock(updates: { productId: string; amount: number }[]): Promise<void>;
+  abstract decrementStock(
+    id: string,
+    amount: number,
+  ): Promise<ProductDocument | null>;
+  abstract decrementManyStock(
+    updates: { productId: string; amount: number }[],
+  ): Promise<void>;
   abstract count(): Promise<number>;
 }
 
 @Injectable()
 export class MongooseProductsRepository implements ProductsRepository {
-  constructor(@InjectModel(Product.name) private readonly productModel: Model<ProductDocument>) {}
+  constructor(
+    @InjectModel(Product.name)
+    private readonly productModel: Model<ProductDocument>,
+  ) {}
 
   findAll(): Promise<ProductDocument[]> {
     return this.productModel.find().sort({ createdAt: 1 }).exec();
@@ -46,10 +57,13 @@ export class MongooseProductsRepository implements ProductsRepository {
   }
 
   async createMany(data: CreateProductData[]): Promise<ProductDocument[]> {
-    return this.productModel.insertMany(data) as unknown as Promise<ProductDocument[]>;
+    return this.productModel.insertMany(data);
   }
 
-  update(id: string, data: Partial<CreateProductData>): Promise<ProductDocument | null> {
+  update(
+    id: string,
+    data: Partial<CreateProductData>,
+  ): Promise<ProductDocument | null> {
     return this.productModel.findByIdAndUpdate(id, data, { new: true }).exec();
   }
 
@@ -59,16 +73,23 @@ export class MongooseProductsRepository implements ProductsRepository {
   }
 
   decrementStock(id: string, amount: number): Promise<ProductDocument | null> {
-    return this.productModel.findByIdAndUpdate(id, { $inc: { stock: -amount } }, { new: true }).exec();
+    return this.productModel
+      .findByIdAndUpdate(id, { $inc: { stock: -amount } }, { new: true })
+      .exec();
   }
 
   // One bulkWrite round trip for the whole order, regardless of line-item count — not a
   // decrementStock() call per line.
-  async decrementManyStock(updates: { productId: string; amount: number }[]): Promise<void> {
+  async decrementManyStock(
+    updates: { productId: string; amount: number }[],
+  ): Promise<void> {
     if (updates.length === 0) return;
     await this.productModel.bulkWrite(
       updates.map(({ productId, amount }) => ({
-        updateOne: { filter: { _id: productId }, update: { $inc: { stock: -amount } } },
+        updateOne: {
+          filter: { _id: productId },
+          update: { $inc: { stock: -amount } },
+        },
       })),
     );
   }
