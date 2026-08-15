@@ -48,6 +48,12 @@ export class EmptyCartException extends ConflictException {
   }
 }
 
+export class OrderNotFoundException extends NotFoundException {
+  constructor(orderId: string) {
+    super(`Order ${orderId} was not found`);
+  }
+}
+
 export class InvalidCredentialsException extends UnauthorizedException {
   constructor() {
     super('Invalid email or password');

@@ -32,4 +32,8 @@ export class ProductsService {
   async decrementStock(id: string, amount: number): Promise<void> {
     await this.productsRepository.decrementStock(id, amount);
   }
+
+  async decrementManyStock(updates: { productId: string; amount: number }[]): Promise<void> {
+    await this.productsRepository.decrementManyStock(updates);
+  }
 }

@@ -20,6 +20,7 @@ export abstract class ProductsRepository {
   abstract update(id: string, data: Partial<CreateProductData>): Promise<ProductDocument | null>;
   abstract delete(id: string): Promise<boolean>;
   abstract decrementStock(id: string, amount: number): Promise<ProductDocument | null>;
+  abstract decrementManyStock(updates: { productId: string; amount: number }[]): Promise<void>;
   abstract count(): Promise<number>;
 }
 
@@ -59,6 +60,17 @@ export class MongooseProductsRepository implements ProductsRepository {
 
   decrementStock(id: string, amount: number): Promise<ProductDocument | null> {
     return this.productModel.findByIdAndUpdate(id, { $inc: { stock: -amount } }, { new: true }).exec();
+  }
+
+  // One bulkWrite round trip for the whole order, regardless of line-item count — not a
+  // decrementStock() call per line.
+  async decrementManyStock(updates: { productId: string; amount: number }[]): Promise<void> {
+    if (updates.length === 0) return;
+    await this.productModel.bulkWrite(
+      updates.map(({ productId, amount }) => ({
+        updateOne: { filter: { _id: productId }, update: { $inc: { stock: -amount } } },
+      })),
+    );
   }
 
   count(): Promise<number> {
