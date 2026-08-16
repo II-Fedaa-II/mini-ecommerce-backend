@@ -6,16 +6,19 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
+import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { PERMISSIONS } from '../roles/permissions';
 import { RolesService } from '../roles/roles.service';
 import { AssignRoleDto } from './dto/assign-role.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UsersService } from './users.service';
 
@@ -29,26 +32,10 @@ export class UsersController {
 
   @Get()
   @RequirePermissions(PERMISSIONS.USERS_READ)
-  async findAll(): Promise<UserResponseDto[]> {
-    const users = await this.usersService.findAll();
-
-    // One batched role lookup for the whole page of users, not a query per user.
-    const roleIds = [...new Set(users.map((user) => user.roleId.toString()))];
-    const roles = await this.rolesService.findManyByIds(roleIds);
-    const roleMap = new Map(
-      roles.map((role) => [
-        role._id.toString(),
-        {
-          id: role._id.toString(),
-          name: role.name,
-          permissions: role.permissions,
-        },
-      ]),
-    );
-
-    return users.map((user) =>
-      UserResponseDto.fromDocument(user, roleMap.get(user.roleId.toString())),
-    );
+  list(
+    @Query() query: ListUsersQueryDto,
+  ): Promise<PaginatedResponseDto<UserResponseDto>> {
+    return this.usersService.list(query);
   }
 
   @Post()

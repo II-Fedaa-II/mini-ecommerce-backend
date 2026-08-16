@@ -10,6 +10,19 @@ export interface CreateUserData {
   roleId: string;
 }
 
+export interface UserPageQuery {
+  /** Matches against name or email, case-insensitive. */
+  search?: string;
+  roleId?: string;
+  page: number;
+  limit: number;
+}
+
+export interface UserPageResult {
+  items: UserDocument[];
+  total: number;
+}
+
 /**
  * Abstract class used as both the TypeScript interface and the Nest DI token —
  * services depend on this, never on the Mongoose model directly, so the
@@ -24,6 +37,7 @@ export abstract class UsersRepository {
   abstract findByIds(ids: string[]): Promise<UserDocument[]>;
   abstract searchByEmail(query: string, limit: number): Promise<UserDocument[]>;
   abstract findAll(): Promise<UserDocument[]>;
+  abstract findPage(query: UserPageQuery): Promise<UserPageResult>;
   abstract updateRole(id: string, roleId: string): Promise<UserDocument | null>;
   abstract countByRoleId(roleId: string): Promise<number>;
   abstract assignRoleToUsersWithout(roleId: string): Promise<number>;
@@ -73,6 +87,32 @@ export class MongooseUsersRepository implements UsersRepository {
 
   findAll(): Promise<UserDocument[]> {
     return this.userModel.find().sort({ createdAt: 1 }).exec();
+  }
+
+  async findPage(query: UserPageQuery): Promise<UserPageResult> {
+    const filter: Record<string, unknown> = {};
+
+    if (query.search) {
+      const escaped = query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = { $regex: escaped, $options: 'i' };
+      filter.$or = [{ name: pattern }, { email: pattern }];
+    }
+
+    if (query.roleId) filter.roleId = query.roleId;
+
+    const skip = (query.page - 1) * query.limit;
+
+    const [items, total] = await Promise.all([
+      this.userModel
+        .find(filter)
+        .sort({ createdAt: 1 })
+        .skip(skip)
+        .limit(query.limit)
+        .exec(),
+      this.userModel.countDocuments(filter).exec(),
+    ]);
+
+    return { items, total };
   }
 
   updateRole(id: string, roleId: string): Promise<UserDocument | null> {

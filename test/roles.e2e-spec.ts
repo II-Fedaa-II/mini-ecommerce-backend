@@ -208,11 +208,16 @@ describe('Roles / RBAC (e2e)', () => {
   it('lets an admin list users and reassign a role', async () => {
     const usersRes = await request(ctx.app.getHttpServer())
       .get('/users')
+      .query({ search: 'rbac-customer@test.com' })
       .set('Authorization', asAdmin())
       .expect(200);
 
     const customer = (
-      usersRes.body as { id: string; email: string; role: { name: string } }[]
+      usersRes.body.items as {
+        id: string;
+        email: string;
+        role: { name: string };
+      }[]
     ).find((user) => user.email === 'rbac-customer@test.com')!;
     expect(customer.role.name).toBe('customer');
 
@@ -223,6 +228,35 @@ describe('Roles / RBAC (e2e)', () => {
       .expect(200);
 
     expect(updated.body.role.name).toBe('admin');
+  });
+
+  it('paginates and filters the users list by search and role', async () => {
+    const searchRes = await request(ctx.app.getHttpServer())
+      .get('/users')
+      .query({ search: 'rbac-editor' })
+      .set('Authorization', asAdmin())
+      .expect(200);
+    expect(searchRes.body.total).toBe(1);
+    expect(searchRes.body.items[0].email).toBe('rbac-editor@test.com');
+
+    const roleFilterRes = await request(ctx.app.getHttpServer())
+      .get('/users')
+      .query({ roleId: adminRoleId })
+      .set('Authorization', asAdmin())
+      .expect(200);
+    expect(
+      (roleFilterRes.body.items as { role: { name: string } }[]).every(
+        (user) => user.role.name === 'admin',
+      ),
+    ).toBe(true);
+
+    const pageRes = await request(ctx.app.getHttpServer())
+      .get('/users')
+      .query({ limit: 1, page: 1 })
+      .set('Authorization', asAdmin())
+      .expect(200);
+    expect(pageRes.body.items).toHaveLength(1);
+    expect(pageRes.body.totalPages).toBeGreaterThan(1);
   });
 
   it('lets an admin create a user directly with a chosen role', async () => {

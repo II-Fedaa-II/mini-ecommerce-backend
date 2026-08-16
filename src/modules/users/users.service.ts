@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { Types } from 'mongoose';
+import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
 import {
   CartItemNotFoundException,
   EmailAlreadyRegisteredException,
   UserNotFoundException,
 } from '../../common/exceptions/domain.exceptions';
+import { RolesService } from '../roles/roles.service';
+import { UserResponseDto } from './dto/user-response.dto';
 import {
   CreateUserData,
+  UserPageQuery,
   UsersRepository,
 } from './repositories/users.repository';
 import { CartItem } from './schemas/cart-item.schema';
@@ -18,7 +22,10 @@ import {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly usersRepository: UsersRepository) {}
+  constructor(
+    private readonly usersRepository: UsersRepository,
+    private readonly rolesService: RolesService,
+  ) {}
 
   createUser(data: CreateUserData): Promise<UserDocument> {
     return this.usersRepository.create(data);
@@ -37,6 +44,32 @@ export class UsersService {
 
   findAll(): Promise<UserDocument[]> {
     return this.usersRepository.findAll();
+  }
+
+  async list(
+    query: UserPageQuery,
+  ): Promise<PaginatedResponseDto<UserResponseDto>> {
+    const { items, total } = await this.usersRepository.findPage(query);
+
+    // One batched role lookup for the whole page, not a query per user.
+    const roleIds = [...new Set(items.map((user) => user.roleId.toString()))];
+    const roles = await this.rolesService.findManyByIds(roleIds);
+    const roleMap = new Map(
+      roles.map((role) => [
+        role._id.toString(),
+        {
+          id: role._id.toString(),
+          name: role.name,
+          permissions: role.permissions,
+        },
+      ]),
+    );
+
+    const dtos = items.map((user) =>
+      UserResponseDto.fromDocument(user, roleMap.get(user.roleId.toString())),
+    );
+
+    return PaginatedResponseDto.create(dtos, total, query.page, query.limit);
   }
 
   /** Batched by design — the caller resolves customer info for a whole page of orders at once. */
