@@ -1,11 +1,43 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { FilterQuery, Model } from 'mongoose';
 import { Product, ProductDocument } from '../schemas/product.schema';
 
 export interface StockUpdate {
   productId: string;
   amount: number;
+}
+
+/** Owned here rather than in the DTO layer — the repository is the natural source of
+ * truth for which sorts the data layer actually supports. */
+export const PRODUCT_SORTS = [
+  'newest',
+  'price_asc',
+  'price_desc',
+  'title_asc',
+] as const;
+export type ProductSort = (typeof PRODUCT_SORTS)[number];
+
+const SORT_MAP: Record<ProductSort, Record<string, 1 | -1>> = {
+  newest: { createdAt: -1 },
+  price_asc: { price: 1 },
+  price_desc: { price: -1 },
+  title_asc: { title: 1 },
+};
+
+export interface ProductPageQuery {
+  search?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  inStock?: boolean;
+  sort: ProductSort;
+  page: number;
+  limit: number;
+}
+
+export interface ProductPageResult {
+  items: ProductDocument[];
+  total: number;
 }
 
 export interface CreateProductData {
@@ -19,6 +51,7 @@ export interface CreateProductData {
 
 export abstract class ProductsRepository {
   abstract findAll(): Promise<ProductDocument[]>;
+  abstract findPage(query: ProductPageQuery): Promise<ProductPageResult>;
   abstract findById(id: string): Promise<ProductDocument | null>;
   abstract findByIds(ids: string[]): Promise<ProductDocument[]>;
   abstract findByTitle(title: string): Promise<ProductDocument | null>;
@@ -60,6 +93,45 @@ export class MongooseProductsRepository implements ProductsRepository {
 
   findAll(): Promise<ProductDocument[]> {
     return this.productModel.find().sort({ createdAt: 1 }).exec();
+  }
+
+  /**
+   * Count and find run as two round trips rather than one `$facet` aggregation — at this
+   * catalogue's scale the extra query costs nothing, and keeping both as plain `find`/
+   * `countDocuments` calls is far easier to read than an aggregation pipeline would be.
+   */
+  async findPage(query: ProductPageQuery): Promise<ProductPageResult> {
+    const filter: FilterQuery<ProductDocument> = {};
+
+    if (query.search) {
+      const escaped = query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.title = { $regex: escaped, $options: 'i' };
+    }
+
+    if (query.minPrice !== undefined || query.maxPrice !== undefined) {
+      const priceRange: { $gte?: number; $lte?: number } = {};
+      if (query.minPrice !== undefined) priceRange.$gte = query.minPrice;
+      if (query.maxPrice !== undefined) priceRange.$lte = query.maxPrice;
+      filter.price = priceRange;
+    }
+
+    if (query.inStock) {
+      filter.stock = { $gt: 0 };
+    }
+
+    const skip = (query.page - 1) * query.limit;
+
+    const [items, total] = await Promise.all([
+      this.productModel
+        .find(filter)
+        .sort(SORT_MAP[query.sort])
+        .skip(skip)
+        .limit(query.limit)
+        .exec(),
+      this.productModel.countDocuments(filter).exec(),
+    ]);
+
+    return { items, total };
   }
 
   findById(id: string): Promise<ProductDocument | null> {

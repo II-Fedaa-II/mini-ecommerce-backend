@@ -67,14 +67,17 @@ describe('Products (e2e)', () => {
     await request(ctx.app.getHttpServer()).get('/products').expect(401);
   });
 
-  it('lists all products', async () => {
+  it('lists products with pagination metadata', async () => {
     const res = await request(ctx.app.getHttpServer())
       .get('/products')
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
 
-    expect(res.body).toHaveLength(1);
-    expect(res.body[0].title).toBe('Test Product');
+    expect(res.body.items).toHaveLength(1);
+    expect(res.body.items[0].title).toBe('Test Product');
+    expect(res.body.total).toBe(1);
+    expect(res.body.page).toBe(1);
+    expect(res.body.totalPages).toBe(1);
   });
 
   it('returns product detail by id', async () => {
@@ -232,6 +235,86 @@ describe('Products (e2e)', () => {
           version: (reloaded.body as { version: number }).version,
         })
         .expect(200);
+    });
+  });
+
+  describe('search, filters, and pagination', () => {
+    const prefix = `Listing E2E ${Date.now()}`;
+
+    beforeAll(async () => {
+      for (const [suffix, price, stock] of [
+        ['Alpha', 10, 5],
+        ['Beta', 30, 0],
+        ['Gamma', 50, 5],
+      ] as const) {
+        await request(ctx.app.getHttpServer())
+          .post('/products')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            title: `${prefix} ${suffix}`,
+            description: 'Fixture for listing e2e tests',
+            price,
+            stock,
+            variants: [],
+          })
+          .expect(201);
+      }
+    });
+
+    it('filters by title search', async () => {
+      const res = await request(ctx.app.getHttpServer())
+        .get('/products')
+        .query({ search: `${prefix} Beta` })
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.items[0].title).toBe(`${prefix} Beta`);
+    });
+
+    it('filters by price range', async () => {
+      const res = await request(ctx.app.getHttpServer())
+        .get('/products')
+        .query({ search: prefix, minPrice: 20, maxPrice: 40 })
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.items[0].title).toBe(`${prefix} Beta`);
+    });
+
+    it('filters to in-stock items only', async () => {
+      const res = await request(ctx.app.getHttpServer())
+        .get('/products')
+        .query({ search: prefix, inStock: 'true' })
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      const titles = (res.body.items as { title: string }[])
+        .map((item) => item.title)
+        .sort();
+      expect(titles).toEqual([`${prefix} Alpha`, `${prefix} Gamma`].sort());
+    });
+
+    it('paginates results', async () => {
+      const page1 = await request(ctx.app.getHttpServer())
+        .get('/products')
+        .query({ search: prefix, limit: 2, page: 1, sort: 'title_asc' })
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(page1.body.items).toHaveLength(2);
+      expect(page1.body.total).toBe(3);
+      expect(page1.body.totalPages).toBe(2);
+
+      const page2 = await request(ctx.app.getHttpServer())
+        .get('/products')
+        .query({ search: prefix, limit: 2, page: 2, sort: 'title_asc' })
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(page2.body.items).toHaveLength(1);
+      expect(page2.body.items[0].title).toBe(`${prefix} Gamma`);
     });
   });
 });

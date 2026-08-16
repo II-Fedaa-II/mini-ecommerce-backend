@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -15,6 +16,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { randomUUID } from 'crypto';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
+import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
 import {
   MissingImageException,
   UnsupportedImageTypeException,
@@ -24,6 +26,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { PERMISSIONS } from '../roles/permissions';
 import { CreateProductDto } from './dto/create-product.dto';
+import { ListProductsQueryDto } from './dto/list-products-query.dto';
 import { ProductResponseDto } from './dto/product-response.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
@@ -35,8 +38,10 @@ export class ProductsController {
 
   // Reads stay open to any signed-in shopper — the storefront needs them.
   @Get()
-  findAll(): Promise<ProductResponseDto[]> {
-    return this.productsService.findAll();
+  list(
+    @Query() query: ListProductsQueryDto,
+  ): Promise<PaginatedResponseDto<ProductResponseDto>> {
+    return this.productsService.list(query);
   }
 
   @Get(':id')

@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
+import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
 import {
   ProductModifiedException,
   ProductNotFoundException,
   ProductTitleTakenException,
 } from '../../common/exceptions/domain.exceptions';
+import { ListProductsQueryDto } from './dto/list-products-query.dto';
 import { ProductResponseDto } from './dto/product-response.dto';
 import {
   CreateProductData,
@@ -19,6 +21,27 @@ export class ProductsService {
   async findAll(): Promise<ProductResponseDto[]> {
     const products = await this.productsRepository.findAll();
     return products.map((product) => ProductResponseDto.fromDocument(product));
+  }
+
+  async list(
+    query: ListProductsQueryDto,
+  ): Promise<PaginatedResponseDto<ProductResponseDto>> {
+    const { items, total } = await this.productsRepository.findPage({
+      search: query.search?.trim() || undefined,
+      minPrice: query.minPrice,
+      maxPrice: query.maxPrice,
+      inStock: query.inStock,
+      sort: query.sort,
+      page: query.page,
+      limit: query.limit,
+    });
+
+    return PaginatedResponseDto.create(
+      items.map((product) => ProductResponseDto.fromDocument(product)),
+      total,
+      query.page,
+      query.limit,
+    );
   }
 
   async getById(id: string): Promise<ProductResponseDto> {
