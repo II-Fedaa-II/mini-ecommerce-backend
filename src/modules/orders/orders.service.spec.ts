@@ -40,6 +40,8 @@ describe('OrdersService', () => {
     usersService = {
       getCart: jest.fn(),
       clearCart: jest.fn(),
+      findByIds: jest.fn().mockResolvedValue([]),
+      searchByEmail: jest.fn().mockResolvedValue([]),
     } as unknown as jest.Mocked<UsersService>;
 
     productsService = {
@@ -55,6 +57,7 @@ describe('OrdersService', () => {
       create: jest.fn(),
       findById: jest.fn(),
       findByIdempotencyKey: jest.fn().mockResolvedValue(null),
+      findPage: jest.fn().mockResolvedValue({ items: [], total: 0 }),
     } as unknown as jest.Mocked<OrdersRepository>;
 
     service = new OrdersService(
@@ -174,6 +177,89 @@ describe('OrdersService', () => {
       expect(productsService.restoreManyStock).toHaveBeenCalledWith([
         { productId: 'product-1', amount: 2 },
       ]);
+    });
+  });
+
+  describe('listForAdmin', () => {
+    it('short-circuits without querying orders when the search matches no customer', async () => {
+      usersService.searchByEmail.mockResolvedValue([]);
+
+      const result = await service.listForAdmin('nobody@test.com', 1, 20);
+
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
+      expect(ordersRepository.findPage).not.toHaveBeenCalled();
+    });
+
+    it('filters to the matched customers and attaches their name/email from a batched lookup', async () => {
+      const orderForAda = {
+        ...persistedOrder,
+        userId: { toString: () => 'user-1' },
+      } as any;
+
+      usersService.searchByEmail.mockResolvedValue([
+        {
+          _id: { toString: () => 'user-1' },
+          name: 'Ada',
+          email: 'ada@test.com',
+        } as any,
+      ]);
+      ordersRepository.findPage.mockResolvedValue({
+        items: [orderForAda],
+        total: 1,
+      });
+      usersService.findByIds.mockResolvedValue([
+        {
+          _id: { toString: () => 'user-1' },
+          name: 'Ada',
+          email: 'ada@test.com',
+        } as any,
+      ]);
+
+      const result = await service.listForAdmin('ada', 1, 20);
+
+      expect(ordersRepository.findPage).toHaveBeenCalledWith({
+        userIds: ['user-1'],
+        page: 1,
+        limit: 20,
+      });
+      expect(result.items[0].customer).toEqual({
+        id: 'user-1',
+        name: 'Ada',
+        email: 'ada@test.com',
+      });
+    });
+
+    it('does not filter by customer when no search is given', async () => {
+      ordersRepository.findPage.mockResolvedValue({ items: [], total: 0 });
+
+      await service.listForAdmin(undefined, 2, 10);
+
+      expect(usersService.searchByEmail).not.toHaveBeenCalled();
+      expect(ordersRepository.findPage).toHaveBeenCalledWith({
+        userIds: undefined,
+        page: 2,
+        limit: 10,
+      });
+    });
+  });
+
+  describe('listMine', () => {
+    it('scopes the query to the caller and returns the paginated envelope', async () => {
+      ordersRepository.findPage.mockResolvedValue({
+        items: [persistedOrder],
+        total: 1,
+      });
+
+      const result = await service.listMine('user-1', 1, 20);
+
+      expect(ordersRepository.findPage).toHaveBeenCalledWith({
+        userId: 'user-1',
+        page: 1,
+        limit: 20,
+      });
+      expect(result.total).toBe(1);
+      expect(result.items[0].id).toBe('order-1');
     });
   });
 });

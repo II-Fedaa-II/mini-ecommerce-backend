@@ -22,6 +22,7 @@ export abstract class UsersRepository {
   abstract findByEmailWithPassword(email: string): Promise<UserDocument | null>;
   abstract save(user: UserDocument): Promise<UserDocument>;
   abstract findByIds(ids: string[]): Promise<UserDocument[]>;
+  abstract searchByEmail(query: string, limit: number): Promise<UserDocument[]>;
   abstract findAll(): Promise<UserDocument[]>;
   abstract updateRole(id: string, roleId: string): Promise<UserDocument | null>;
   abstract countByRoleId(roleId: string): Promise<number>;
@@ -59,6 +60,15 @@ export class MongooseUsersRepository implements UsersRepository {
 
   findByIds(ids: string[]): Promise<UserDocument[]> {
     return this.userModel.find({ _id: { $in: ids } }).exec();
+  }
+
+  /** Used to resolve "which customers match this search" before filtering orders by them. */
+  searchByEmail(query: string, limit: number): Promise<UserDocument[]> {
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return this.userModel
+      .find({ email: { $regex: escaped, $options: 'i' } })
+      .limit(limit)
+      .exec();
   }
 
   findAll(): Promise<UserDocument[]> {

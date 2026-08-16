@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
 import {
   EmptyCartException,
   InsufficientStockException,
@@ -6,7 +7,11 @@ import {
 } from '../../common/exceptions/domain.exceptions';
 import { ProductsService } from '../products/products.service';
 import { UsersService } from '../users/users.service';
-import { OrderResponseDto } from './dto/order-response.dto';
+import {
+  AdminOrderResponseDto,
+  OrderCustomer,
+  OrderResponseDto,
+} from './dto/order-response.dto';
 import {
   DUPLICATE_KEY_ERROR,
   OrdersRepository,
@@ -127,6 +132,78 @@ export class OrdersService {
     if (!order || order.userId.toString() !== userId)
       throw new OrderNotFoundException(orderId);
     return OrderResponseDto.fromDocument(order);
+  }
+
+  async listMine(
+    userId: string,
+    page: number,
+    limit: number,
+  ): Promise<PaginatedResponseDto<OrderResponseDto>> {
+    const { items, total } = await this.ordersRepository.findPage({
+      userId,
+      page,
+      limit,
+    });
+    return PaginatedResponseDto.create(
+      items.map((order) => OrderResponseDto.fromDocument(order)),
+      total,
+      page,
+      limit,
+    );
+  }
+
+  /**
+   * There is no full-text order search — "search" means "find this customer's orders",
+   * resolved as a separate lookup rather than a join. An empty match short-circuits
+   * before the order query: `userId: { $in: [] }` would also return nothing, but running
+   * it would be a wasted round trip for a search the caller already knows matched no one.
+   */
+  async listForAdmin(
+    search: string | undefined,
+    page: number,
+    limit: number,
+  ): Promise<PaginatedResponseDto<AdminOrderResponseDto>> {
+    let userIds: string[] | undefined;
+
+    if (search?.trim()) {
+      const matchedUsers = await this.usersService.searchByEmail(search.trim());
+      if (matchedUsers.length === 0) {
+        return PaginatedResponseDto.create([], 0, page, limit);
+      }
+      userIds = matchedUsers.map((user) => user._id.toString());
+    }
+
+    const { items, total } = await this.ordersRepository.findPage({
+      userIds,
+      page,
+      limit,
+    });
+
+    // Batched, not per-order: one lookup for the whole page regardless of how many
+    // distinct customers appear on it.
+    const distinctCustomerIds = [
+      ...new Set(items.map((order) => order.userId.toString())),
+    ];
+    const customers = await this.usersService.findByIds(distinctCustomerIds);
+    const customerMap = new Map<string, OrderCustomer>(
+      customers.map((customer) => [
+        customer._id.toString(),
+        {
+          id: customer._id.toString(),
+          name: customer.name,
+          email: customer.email,
+        },
+      ]),
+    );
+
+    const dtos = items.map((order) =>
+      AdminOrderResponseDto.fromDocumentWithCustomer(
+        order,
+        customerMap.get(order.userId.toString()) ?? null,
+      ),
+    );
+
+    return PaginatedResponseDto.create(dtos, total, page, limit);
   }
 
   private isDuplicateKeyError(error: unknown): boolean {

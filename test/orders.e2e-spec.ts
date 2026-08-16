@@ -236,4 +236,109 @@ describe('Orders (e2e)', () => {
       expect(after.body.stock).toBe(0);
     });
   });
+
+  describe('order history', () => {
+    let historyUserToken: string;
+    let historyUserEmail: string;
+
+    beforeAll(async () => {
+      const productRes = await request(ctx.app.getHttpServer())
+        .post('/products')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          title: `History Fixture ${Date.now()}`,
+          description: 'Fixture for order-history tests',
+          price: 10,
+          stock: 100,
+          variants: [],
+        })
+        .expect(201);
+      const historyProductId = (productRes.body as { id: string }).id;
+
+      const usersService = ctx.app.get(UsersService);
+      const passwordHash = await AuthService.hashPassword('Password123!');
+      historyUserEmail = `e2e-history-${Date.now()}@test.com`;
+      await usersService.createUser({
+        email: historyUserEmail,
+        passwordHash,
+        name: 'History Customer',
+        roleId: customerRoleId,
+      });
+      const login = await request(ctx.app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: historyUserEmail, password: 'Password123!' });
+      historyUserToken = login.body.accessToken;
+
+      // Three separate orders, not one order of three, so pagination has something to page.
+      for (let i = 0; i < 3; i += 1) {
+        await request(ctx.app.getHttpServer())
+          .post('/cart')
+          .set('Authorization', `Bearer ${historyUserToken}`)
+          .send({ productId: historyProductId, quantity: 1 })
+          .expect(201);
+        await request(ctx.app.getHttpServer())
+          .post('/orders')
+          .set('Authorization', `Bearer ${historyUserToken}`)
+          .expect(201);
+      }
+    });
+
+    it("lists only the caller's own orders, paginated", async () => {
+      const res = await request(ctx.app.getHttpServer())
+        .get('/orders/me')
+        .query({ limit: 2, page: 1 })
+        .set('Authorization', `Bearer ${historyUserToken}`)
+        .expect(200);
+
+      expect(res.body.total).toBe(3);
+      expect(res.body.items).toHaveLength(2);
+      expect(res.body.totalPages).toBe(2);
+    });
+
+    it('denies a plain customer the admin order listing', async () => {
+      await request(ctx.app.getHttpServer())
+        .get('/orders')
+        .set('Authorization', `Bearer ${historyUserToken}`)
+        .expect(403);
+    });
+
+    it('lets an admin list every order with the placing customer attached', async () => {
+      const res = await request(ctx.app.getHttpServer())
+        .get('/orders')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      const mine = (
+        res.body.items as { customer: { email: string; name: string } }[]
+      ).filter((order) => order.customer.email === historyUserEmail);
+      expect(mine.length).toBeGreaterThanOrEqual(1);
+      expect(mine[0].customer.name).toBe('History Customer');
+    });
+
+    it("lets an admin search orders by the customer's email", async () => {
+      const res = await request(ctx.app.getHttpServer())
+        .get('/orders')
+        .query({ search: historyUserEmail })
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(res.body.total).toBe(3);
+      expect(
+        (res.body.items as { customer: { email: string } }[]).every(
+          (order) => order.customer.email === historyUserEmail,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns no results for a search that matches no customer', async () => {
+      const res = await request(ctx.app.getHttpServer())
+        .get('/orders')
+        .query({ search: 'no-customer-matches-this-string' })
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(res.body.items).toHaveLength(0);
+      expect(res.body.total).toBe(0);
+    });
+  });
 });

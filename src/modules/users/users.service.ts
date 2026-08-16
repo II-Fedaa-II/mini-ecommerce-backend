@@ -27,6 +27,15 @@ export class UsersService {
     return this.usersRepository.findAll();
   }
 
+  /** Batched by design — the caller resolves customer info for a whole page of orders at once. */
+  findByIds(ids: string[]): Promise<UserDocument[]> {
+    return this.usersRepository.findByIds(ids);
+  }
+
+  searchByEmail(query: string, limit = 50): Promise<UserDocument[]> {
+    return this.usersRepository.searchByEmail(query, limit);
+  }
+
   async assignRole(userId: string, roleId: string): Promise<UserDocument> {
     const updated = await this.usersRepository.updateRole(userId, roleId);
     if (!updated) throw new UserNotFoundException(userId);

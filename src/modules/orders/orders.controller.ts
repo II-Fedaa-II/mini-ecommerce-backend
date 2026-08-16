@@ -5,16 +5,26 @@ import {
   HttpCode,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
+import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import type { RequestUser } from '../../common/types/authenticated-request';
-import { OrderResponseDto } from './dto/order-response.dto';
+import { PERMISSIONS } from '../roles/permissions';
+import { ListOrdersQueryDto } from './dto/list-orders-query.dto';
+import {
+  AdminOrderResponseDto,
+  OrderResponseDto,
+} from './dto/order-response.dto';
 import { OrdersService } from './orders.service';
 
 @Controller('orders')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
@@ -29,6 +39,29 @@ export class OrdersController {
     @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<OrderResponseDto> {
     return this.ordersService.checkout(user.userId, idempotencyKey?.trim());
+  }
+
+  // Registered ahead of the `:id` route below — "me" would otherwise be swallowed as an id.
+  @Get('me')
+  listMine(
+    @CurrentUser() user: RequestUser,
+    @Query() query: PaginationQueryDto,
+  ): Promise<PaginatedResponseDto<OrderResponseDto>> {
+    return this.ordersService.listMine(user.userId, query.page, query.limit);
+  }
+
+  // Every order across every customer, so it is gated on the same permission the other
+  // admin-only reads use — a plain customer never reaches this even if they guess the URL.
+  @Get()
+  @RequirePermissions(PERMISSIONS.ORDERS_READ)
+  listAll(
+    @Query() query: ListOrdersQueryDto,
+  ): Promise<PaginatedResponseDto<AdminOrderResponseDto>> {
+    return this.ordersService.listForAdmin(
+      query.search,
+      query.page,
+      query.limit,
+    );
   }
 
   @Get(':id')
