@@ -12,6 +12,12 @@ export class UserNotFoundException extends NotFoundException {
   }
 }
 
+export class EmailAlreadyRegisteredException extends ConflictException {
+  constructor(email: string) {
+    super(`An account with the email "${email}" already exists`);
+  }
+}
+
 export class ProductNotFoundException extends NotFoundException {
   constructor(productId: string) {
     super(`Product ${productId} was not found`);

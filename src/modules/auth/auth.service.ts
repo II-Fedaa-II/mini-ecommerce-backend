@@ -8,6 +8,7 @@ import {
   InvalidRefreshTokenException,
   RefreshTokenReuseException,
 } from '../../common/exceptions/domain.exceptions';
+import { CUSTOMER_ROLE_NAME } from '../roles/permissions';
 import { parseDurationMs } from '../../common/utils/parse-duration';
 import { AppConfig } from '../../config/configuration';
 import { UserDocument } from '../users/schemas/user.schema';
@@ -54,6 +55,44 @@ export class AuthService {
       throw new InvalidCredentialsException();
     }
 
+    return this.issueSessionFor(user);
+  }
+
+  /**
+   * Self-registered accounts always land on the built-in `customer` role — there is no
+   * way to sign up as an admin or a custom role from the public form. Returns the same
+   * shape as `login` so the client can log the new account straight in without a
+   * second round trip.
+   */
+  async register(
+    email: string,
+    password: string,
+    name: string,
+  ): Promise<
+    IssuedTokens & {
+      user: UserDocument;
+      role: { id: string; name: string; permissions: string[] } | null;
+    }
+  > {
+    const customerRole =
+      await this.rolesService.findByNameOrThrow(CUSTOMER_ROLE_NAME);
+    const passwordHash = await AuthService.hashPassword(password);
+    const user = await this.usersService.createAccount({
+      email,
+      passwordHash,
+      name,
+      roleId: customerRole._id.toString(),
+    });
+
+    return this.issueSessionFor(user);
+  }
+
+  private async issueSessionFor(user: UserDocument): Promise<
+    IssuedTokens & {
+      user: UserDocument;
+      role: { id: string; name: string; permissions: string[] } | null;
+    }
+  > {
     const accessToken = this.signAccessToken(user);
     const refreshToken = await this.issueRefreshToken(
       user._id.toString(),

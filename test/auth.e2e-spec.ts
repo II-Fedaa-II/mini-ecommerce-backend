@@ -72,4 +72,59 @@ describe('Auth (e2e)', () => {
     // ...and must have burned the whole family, so even the freshly-rotated cookie is now dead.
     await agent.post('/auth/refresh').expect(401);
   });
+
+  describe('register', () => {
+    it('creates a customer account, logs it in, and lets it use customer-only routes', async () => {
+      const registerEmail = `e2e-register-${Date.now()}@test.com`;
+
+      const res = await request(ctx.app.getHttpServer())
+        .post('/auth/register')
+        .send({
+          email: registerEmail,
+          password: 'Password123!',
+          name: 'New Shopper',
+        })
+        .expect(201);
+
+      expect(res.body.accessToken).toEqual(expect.any(String));
+      expect(res.body.user.email).toBe(registerEmail);
+      expect(res.body.user.role.name).toBe('customer');
+      expect(res.headers['set-cookie']).toBeDefined();
+
+      // The new account can immediately use it — not just receive a token that then 403s.
+      await request(ctx.app.getHttpServer())
+        .get('/cart')
+        .set('Authorization', `Bearer ${res.body.accessToken}`)
+        .expect(200);
+    });
+
+    it('refuses a second account with the same email', async () => {
+      const registerEmail = `e2e-register-dup-${Date.now()}@test.com`;
+
+      await request(ctx.app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: registerEmail, password: 'Password123!', name: 'First' })
+        .expect(201);
+
+      await request(ctx.app.getHttpServer())
+        .post('/auth/register')
+        .send({
+          email: registerEmail,
+          password: 'Password123!',
+          name: 'Second',
+        })
+        .expect(409);
+    });
+
+    it('rejects a short password before ever touching the database', async () => {
+      await request(ctx.app.getHttpServer())
+        .post('/auth/register')
+        .send({
+          email: `e2e-register-short-${Date.now()}@test.com`,
+          password: 'short',
+          name: 'Shopper',
+        })
+        .expect(400);
+    });
+  });
 });

@@ -225,6 +225,70 @@ describe('Roles / RBAC (e2e)', () => {
     expect(updated.body.role.name).toBe('admin');
   });
 
+  it('lets an admin create a user directly with a chosen role', async () => {
+    const email = `rbac-created-${Date.now()}@test.com`;
+
+    const created = await request(ctx.app.getHttpServer())
+      .post('/users')
+      .set('Authorization', asAdmin())
+      .send({
+        email,
+        password: 'Password123!',
+        name: 'Created By Admin',
+        roleId: customerRoleId,
+      })
+      .expect(201);
+
+    expect(created.body.email).toBe(email);
+    expect(created.body.role.name).toBe('customer');
+
+    // The account is real and can log in immediately.
+    await request(ctx.app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password: 'Password123!' })
+      .expect(200);
+  });
+
+  it('denies a customer the ability to create users', async () => {
+    // A dedicated account, not the shared `customerToken` fixture — an earlier test in
+    // this file reassigns that exact account to the admin role, and permissions are
+    // re-resolved from the database on every request, so the token would no longer
+    // actually carry customer permissions by this point.
+    const usersService = ctx.app.get(UsersService);
+    const deniedEmail = `rbac-denied-actor-${Date.now()}@test.com`;
+    await usersService.createUser({
+      email: deniedEmail,
+      passwordHash: await AuthService.hashPassword(password),
+      name: 'Plain Customer',
+      roleId: customerRoleId,
+    });
+    const deniedToken = await login(deniedEmail);
+
+    await request(ctx.app.getHttpServer())
+      .post('/users')
+      .set('Authorization', `Bearer ${deniedToken}`)
+      .send({
+        email: `rbac-denied-${Date.now()}@test.com`,
+        password: 'Password123!',
+        name: 'Should Not Exist',
+        roleId: customerRoleId,
+      })
+      .expect(403);
+  });
+
+  it('refuses to create a user with an email that is already taken', async () => {
+    await request(ctx.app.getHttpServer())
+      .post('/users')
+      .set('Authorization', asAdmin())
+      .send({
+        email: 'rbac-customer@test.com',
+        password: 'Password123!',
+        name: 'Duplicate',
+        roleId: customerRoleId,
+      })
+      .expect(409);
+  });
+
   it('refuses a duplicate product title, case-insensitively', async () => {
     await request(ctx.app.getHttpServer())
       .post('/products')

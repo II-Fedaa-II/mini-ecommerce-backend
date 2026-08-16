@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Types } from 'mongoose';
 import {
   CartItemNotFoundException,
+  EmailAlreadyRegisteredException,
   UserNotFoundException,
 } from '../../common/exceptions/domain.exceptions';
 import {
@@ -20,6 +21,17 @@ export class UsersService {
   constructor(private readonly usersRepository: UsersRepository) {}
 
   createUser(data: CreateUserData): Promise<UserDocument> {
+    return this.usersRepository.create(data);
+  }
+
+  /**
+   * The one path both self-registration and admin-created accounts go through, so the
+   * duplicate-email check can't be skipped by one caller and not the other. Password is
+   * already hashed by the time it reaches here — this layer owns identity, not crypto.
+   */
+  async createAccount(data: CreateUserData): Promise<UserDocument> {
+    const existing = await this.usersRepository.findByEmail(data.email);
+    if (existing) throw new EmailAlreadyRegisteredException(data.email);
     return this.usersRepository.create(data);
   }
 

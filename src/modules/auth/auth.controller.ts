@@ -14,6 +14,7 @@ import { LoginThrottlerGuard } from '../../common/guards/login-throttler.guard';
 import { AuthService } from './auth.service';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -36,6 +37,18 @@ export class AuthController {
   ): Promise<AuthResponseDto> {
     const { accessToken, refreshToken, user, role } =
       await this.authService.login(dto.email, dto.password);
+    this.setRefreshCookie(res, refreshToken);
+    return AuthResponseDto.from(accessToken, user, role);
+  }
+
+  @Post('register')
+  @HttpCode(201)
+  async register(
+    @Body() dto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponseDto> {
+    const { accessToken, refreshToken, user, role } =
+      await this.authService.register(dto.email, dto.password, dto.name);
     this.setRefreshCookie(res, refreshToken);
     return AuthResponseDto.from(accessToken, user, role);
   }

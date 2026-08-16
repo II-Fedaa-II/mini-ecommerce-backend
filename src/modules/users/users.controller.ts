@@ -1,10 +1,21 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { AuthService } from '../auth/auth.service';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { PERMISSIONS } from '../roles/permissions';
 import { RolesService } from '../roles/roles.service';
 import { AssignRoleDto } from './dto/assign-role.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UsersService } from './users.service';
 
@@ -38,6 +49,26 @@ export class UsersController {
     return users.map((user) =>
       UserResponseDto.fromDocument(user, roleMap.get(user.roleId.toString())),
     );
+  }
+
+  @Post()
+  @HttpCode(201)
+  @RequirePermissions(PERMISSIONS.USERS_WRITE)
+  async create(@Body() dto: CreateUserDto): Promise<UserResponseDto> {
+    const role = await this.rolesService.findByIdOrThrow(dto.roleId);
+    const passwordHash = await AuthService.hashPassword(dto.password);
+    const user = await this.usersService.createAccount({
+      email: dto.email,
+      passwordHash,
+      name: dto.name,
+      roleId: dto.roleId,
+    });
+
+    return UserResponseDto.fromDocument(user, {
+      id: role._id.toString(),
+      name: role.name,
+      permissions: role.permissions,
+    });
   }
 
   @Patch(':id/role')
