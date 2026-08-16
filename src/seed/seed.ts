@@ -6,8 +6,8 @@ import { ProductsService } from '../modules/products/products.service';
 import {
   ADMIN_ROLE_NAME,
   ALL_PERMISSIONS,
+  CUSTOMER_PERMISSIONS,
   CUSTOMER_ROLE_NAME,
-  PERMISSIONS,
 } from '../modules/roles/permissions';
 import { RolesService } from '../modules/roles/roles.service';
 import { UsersService } from '../modules/users/users.service';
@@ -25,7 +25,11 @@ async function seed(): Promise<void> {
   const rolesService = app.get(RolesService);
 
   // Built-in roles are marked isSystem so the admin UI cannot delete or weaken them
-  // and strand the deployment without an account that can manage roles.
+  // and strand the deployment without an account that can manage roles. Their
+  // permissions are code-defined, not admin-customized, so every run re-syncs them to
+  // the current PERMISSIONS catalogue instead of only setting them on first creation —
+  // otherwise a permission added later would never reach a database that already has
+  // these roles seeded.
   let adminRole = await rolesService.findByName(ADMIN_ROLE_NAME);
   if (!adminRole) {
     adminRole = await rolesService.ensureSeeded({
@@ -34,16 +38,28 @@ async function seed(): Promise<void> {
       isSystem: true,
     });
     logger.log(`Seeded "${ADMIN_ROLE_NAME}" role with all permissions`);
+  } else {
+    await rolesService.syncSystemRolePermissions(
+      adminRole._id.toString(),
+      ALL_PERMISSIONS,
+    );
+    logger.log(`Synced "${ADMIN_ROLE_NAME}" role permissions`);
   }
 
   let customerRole = await rolesService.findByName(CUSTOMER_ROLE_NAME);
   if (!customerRole) {
     customerRole = await rolesService.ensureSeeded({
       name: CUSTOMER_ROLE_NAME,
-      permissions: [PERMISSIONS.PRODUCTS_READ],
+      permissions: CUSTOMER_PERMISSIONS,
       isSystem: true,
     });
     logger.log(`Seeded "${CUSTOMER_ROLE_NAME}" role`);
+  } else {
+    await rolesService.syncSystemRolePermissions(
+      customerRole._id.toString(),
+      CUSTOMER_PERMISSIONS,
+    );
+    logger.log(`Synced "${CUSTOMER_ROLE_NAME}" role permissions`);
   }
 
   const productsService = app.get(ProductsService);

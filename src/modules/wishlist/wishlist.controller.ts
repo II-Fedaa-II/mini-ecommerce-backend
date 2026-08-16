@@ -7,13 +7,17 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import type { RequestUser } from '../../common/types/authenticated-request';
+import { PERMISSIONS } from '../roles/permissions';
 import { ProductResponseDto } from '../products/dto/product-response.dto';
 import { WishlistService } from './wishlist.service';
 
 @Controller('wishlist')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions(PERMISSIONS.WISHLIST_MANAGE)
 export class WishlistController {
   constructor(private readonly wishlistService: WishlistService) {}
 

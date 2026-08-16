@@ -36,8 +36,10 @@ import { ProductsService } from './products.service';
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
-  // Reads stay open to any signed-in shopper — the storefront needs them.
+  // Every signed-in account — shopper or admin — holds products:read, so this stays
+  // reachable by both the storefront and the admin panel.
   @Get()
+  @RequirePermissions(PERMISSIONS.PRODUCTS_READ)
   list(
     @Query() query: ListProductsQueryDto,
   ): Promise<PaginatedResponseDto<ProductResponseDto>> {
@@ -45,6 +47,7 @@ export class ProductsController {
   }
 
   @Get(':id')
+  @RequirePermissions(PERMISSIONS.PRODUCTS_READ)
   findOne(@Param('id') id: string): Promise<ProductResponseDto> {
     return this.productsService.getById(id);
   }

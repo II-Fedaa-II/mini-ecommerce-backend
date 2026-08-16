@@ -9,15 +9,21 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import type { RequestUser } from '../../common/types/authenticated-request';
+import { PERMISSIONS } from '../roles/permissions';
 import { CartService } from './cart.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { CartResponseDto } from './dto/cart-response.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 
+// One permission for the whole controller — viewing and managing your own cart is a
+// single capability, not four separate ones.
 @Controller('cart')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions(PERMISSIONS.CART_MANAGE)
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 

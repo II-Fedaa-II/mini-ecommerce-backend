@@ -34,6 +34,7 @@ export class OrdersController {
    */
   @Post()
   @HttpCode(201)
+  @RequirePermissions(PERMISSIONS.ORDERS_CREATE)
   checkout(
     @CurrentUser() user: RequestUser,
     @Headers('idempotency-key') idempotencyKey?: string,
@@ -43,6 +44,7 @@ export class OrdersController {
 
   // Registered ahead of the `:id` route below — "me" would otherwise be swallowed as an id.
   @Get('me')
+  @RequirePermissions(PERMISSIONS.ORDERS_READ_OWN)
   listMine(
     @CurrentUser() user: RequestUser,
     @Query() query: PaginationQueryDto,
@@ -65,6 +67,7 @@ export class OrdersController {
   }
 
   @Get(':id')
+  @RequirePermissions(PERMISSIONS.ORDERS_READ_OWN)
   getById(
     @CurrentUser() user: RequestUser,
     @Param('id') id: string,

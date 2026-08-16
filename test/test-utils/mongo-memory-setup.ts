@@ -7,8 +7,8 @@ import { HttpExceptionFilter } from '../../src/common/filters/http-exception.fil
 import {
   ADMIN_ROLE_NAME,
   ALL_PERMISSIONS,
+  CUSTOMER_PERMISSIONS,
   CUSTOMER_ROLE_NAME,
-  PERMISSIONS,
 } from '../../src/modules/roles/permissions';
 import { RolesService } from '../../src/modules/roles/roles.service';
 
@@ -57,7 +57,7 @@ export async function seedBuiltInRoles(
   });
   const customer = await rolesService.ensureSeeded({
     name: CUSTOMER_ROLE_NAME,
-    permissions: [PERMISSIONS.PRODUCTS_READ],
+    permissions: CUSTOMER_PERMISSIONS,
     isSystem: true,
   });
 

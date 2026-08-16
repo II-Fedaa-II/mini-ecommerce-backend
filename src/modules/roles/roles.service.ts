@@ -32,6 +32,12 @@ export class RolesService {
     return this.rolesRepository.findByName(name);
   }
 
+  async findByNameOrThrow(name: string): Promise<RoleDocument> {
+    const role = await this.rolesRepository.findByName(name);
+    if (!role) throw new RoleNotFoundException(name);
+    return role;
+  }
+
   /** Batched — used to attach roles to a list of users without a query per user. */
   findManyByIds(ids: string[]): Promise<RoleDocument[]> {
     return this.rolesRepository.findByIds(ids);
@@ -74,6 +80,19 @@ export class RolesService {
 
   ensureSeeded(data: CreateRoleData): Promise<RoleDocument> {
     return this.rolesRepository.create(data);
+  }
+
+  /**
+   * Bypasses the isSystem check that blocks the admin-facing update endpoint. Built-in
+   * roles are code-defined, not admin-customized, so the seed script keeps them synced
+   * to whatever the current PERMISSIONS catalogue says they should hold — otherwise a
+   * permission added after first deploy would never reach an existing database.
+   */
+  syncSystemRolePermissions(
+    id: string,
+    permissions: string[],
+  ): Promise<RoleDocument | null> {
+    return this.rolesRepository.updatePermissions(id, permissions);
   }
 
   private assertPermissionsAreKnown(permissions: string[]): void {
