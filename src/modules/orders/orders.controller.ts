@@ -11,11 +11,11 @@ import {
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import type { RequestUser } from '../../common/types/authenticated-request';
 import { PERMISSIONS } from '../roles/permissions';
+import { ListMyOrdersQueryDto } from './dto/list-my-orders-query.dto';
 import { ListOrdersQueryDto } from './dto/list-orders-query.dto';
 import {
   AdminOrderResponseDto,
@@ -47,9 +47,15 @@ export class OrdersController {
   @RequirePermissions(PERMISSIONS.ORDERS_READ_OWN)
   listMine(
     @CurrentUser() user: RequestUser,
-    @Query() query: PaginationQueryDto,
+    @Query() query: ListMyOrdersQueryDto,
   ): Promise<PaginatedResponseDto<OrderResponseDto>> {
-    return this.ordersService.listMine(user.userId, query.page, query.limit);
+    return this.ordersService.listMine(
+      user.userId,
+      query.page,
+      query.limit,
+      query.dateFrom,
+      query.dateTo,
+    );
   }
 
   // Every order across every customer, so it is gated on the same permission the other

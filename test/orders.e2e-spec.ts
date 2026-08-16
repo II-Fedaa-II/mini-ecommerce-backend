@@ -295,6 +295,41 @@ describe('Orders (e2e)', () => {
       expect(res.body.totalPages).toBe(2);
     });
 
+    it('includes orders placed within the given date range', async () => {
+      const today = new Date().toISOString().slice(0, 10);
+
+      const res = await request(ctx.app.getHttpServer())
+        .get('/orders/me')
+        .query({ dateFrom: today, dateTo: today })
+        .set('Authorization', `Bearer ${historyUserToken}`)
+        .expect(200);
+
+      expect(res.body.total).toBe(3);
+    });
+
+    it('excludes orders outside the given date range', async () => {
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
+
+      const res = await request(ctx.app.getHttpServer())
+        .get('/orders/me')
+        .query({ dateTo: yesterday })
+        .set('Authorization', `Bearer ${historyUserToken}`)
+        .expect(200);
+
+      expect(res.body.total).toBe(0);
+      expect(res.body.items).toHaveLength(0);
+    });
+
+    it('rejects a malformed date filter', async () => {
+      await request(ctx.app.getHttpServer())
+        .get('/orders/me')
+        .query({ dateFrom: 'not-a-date' })
+        .set('Authorization', `Bearer ${historyUserToken}`)
+        .expect(400);
+    });
+
     it('denies a plain customer the admin order listing', async () => {
       await request(ctx.app.getHttpServer())
         .get('/orders')

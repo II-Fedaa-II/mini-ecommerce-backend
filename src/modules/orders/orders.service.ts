@@ -138,11 +138,15 @@ export class OrdersService {
     userId: string,
     page: number,
     limit: number,
+    dateFrom?: string,
+    dateTo?: string,
   ): Promise<PaginatedResponseDto<OrderResponseDto>> {
     const { items, total } = await this.ordersRepository.findPage({
       userId,
       page,
       limit,
+      dateFrom: dateFrom ? new Date(dateFrom) : undefined,
+      dateTo: dateTo ? new Date(dateTo) : undefined,
     });
     return PaginatedResponseDto.create(
       items.map((order) => OrderResponseDto.fromDocument(order)),

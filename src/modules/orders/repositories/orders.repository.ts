@@ -15,6 +15,9 @@ export interface OrderPageQuery {
   userId?: string;
   /** Set match — used for the admin listing once a customer search resolves to accounts. */
   userIds?: string[];
+  /** Inclusive on both ends — a customer picking "Aug 15" expects that whole day included. */
+  dateFrom?: Date;
+  dateTo?: Date;
   page: number;
   limit: number;
 }
@@ -63,6 +66,14 @@ export class MongooseOrdersRepository implements OrdersRepository {
     if (query.userId) filter.userId = query.userId;
     else if (query.userIds) filter.userId = { $in: query.userIds };
 
+    if (query.dateFrom || query.dateTo) {
+      const createdAt: { $gte?: Date; $lte?: Date } = {};
+      if (query.dateFrom) createdAt.$gte = startOfDay(query.dateFrom);
+      // "To" a given day includes that whole day, not just up to its midnight start.
+      if (query.dateTo) createdAt.$lte = endOfDay(query.dateTo);
+      filter.createdAt = createdAt;
+    }
+
     const skip = (query.page - 1) * query.limit;
 
     const [items, total] = await Promise.all([
@@ -77,4 +88,16 @@ export class MongooseOrdersRepository implements OrdersRepository {
 
     return { items, total };
   }
+}
+
+function startOfDay(date: Date): Date {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
+function endOfDay(date: Date): Date {
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+  return end;
 }
